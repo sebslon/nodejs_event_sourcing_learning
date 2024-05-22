@@ -1,16 +1,19 @@
+import { EventStoreDBClient } from '@eventstore/db-client';
 import { Request, Response, Router } from 'express';
+import { v4 as uuid } from 'uuid';
+import {
+  PricedProductItem,
+  ProductItem,
+} from '../../../core/cart/product-item.interface';
+import { sendCreated } from '../../tools/api';
+import { getETagFromIfMatch, getWeakETagValue } from '../../tools/etag';
+import { getEventStore } from '../../tools/eventStore';
 import {
   assertNotEmptyString,
   assertPositiveNumber,
 } from '../../tools/validation';
-import { sendCreated } from '../../tools/api';
-import { v4 as uuid } from 'uuid';
-import { PricedProductItem, ProductItem } from './shoppingCart';
-import { decider } from './businessLogic';
-import { CommandHandler } from './commandHandler';
-import { EventStoreDBClient } from '@eventstore/db-client';
-import { getEventStore } from '../../tools/eventStore';
-import { getETagFromIfMatch, getWeakETagValue } from '../../tools/etag';
+import { decider } from './business-logic';
+import { CommandHandler } from './command-handler';
 
 export const mapShoppingCartStreamId = (id: string) => `shopping_cart-${id}`;
 

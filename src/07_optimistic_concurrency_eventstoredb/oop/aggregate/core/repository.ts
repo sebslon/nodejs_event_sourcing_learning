@@ -1,6 +1,6 @@
+import { Aggregate } from '#core/shared/aggregate';
 import { EventStore } from '../../../tools/eventStore';
 import { Event } from '../../../tools/events';
-import { Aggregate } from './aggregate';
 
 export interface Repository<Entity> {
   find(id: string): Promise<Entity>;

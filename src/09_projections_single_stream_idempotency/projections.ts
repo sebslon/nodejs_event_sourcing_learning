@@ -1,11 +1,9 @@
-import { EventHandler } from './tools/eventStore';
+import { ShoppingCartDetails } from '#core/cart/shopping-cart-details.type';
+import { ShoppingCartStatus } from '#core/cart/shopping-cart-status.enum';
+import { ShoppingCartEvent } from '#core/cart/shopping-cart.event.type';
+import { ShoppingCartShortInfo } from '#core/cart/shopping-cart.type';
 import { DocumentsCollection } from './tools/database';
-import {
-  ShoppingCartDetails,
-  ShoppingCartEvent,
-  ShoppingCartShortInfo,
-  ShoppingCartStatus,
-} from './projections.exercise.test';
+import { EventHandler } from './tools/eventStore';
 
 export const getAndStore = <T>(
   collection: DocumentsCollection<T>,
@@ -28,7 +26,7 @@ export const ShoppingCartDetailsProjection = (
           status: ShoppingCartStatus.Pending,
           clientId: event.clientId,
           productItems: [],
-          openedAt: event.openedAt,
+          openedAt: event.openedAt.toISOString(),
           totalAmount: 0,
           totalItemsCount: 0,
         });
@@ -91,16 +89,16 @@ export const ShoppingCartDetailsProjection = (
       case 'ShoppingCartConfirmed': {
         getAndStore(collection, event.shoppingCartId, (document) => {
           document.status = ShoppingCartStatus.Confirmed;
-          document.confirmedAt = event.confirmedAt;
+          document.confirmedAt = event.confirmedAt.toISOString();
 
           return document;
         });
         return;
       }
-      case 'ShoppingCartCanceled': {
+      case 'ShoppingCartCancelled': {
         getAndStore(collection, event.shoppingCartId, (document) => {
-          document.status = ShoppingCartStatus.Canceled;
-          document.canceledAt = event.canceledAt;
+          document.status = ShoppingCartStatus.Cancelled;
+          document.cancelledAt = event.cancelledAt.toISOString();
 
           return document;
         });
@@ -153,7 +151,7 @@ export const ShoppingCartShortInfoProjection = (
         collection.delete(event.shoppingCartId);
         return;
       }
-      case 'ShoppingCartCanceled': {
+      case 'ShoppingCartCancelled': {
         collection.delete(event.shoppingCartId);
         return;
       }

@@ -1,27 +1,27 @@
+import {
+  PricedProductItem,
+  ProductItem,
+} from '#core/cart/product-item.interface';
+import { EventStoreDBClient } from '@eventstore/db-client';
 import { Request, Response, Router } from 'express';
+import { v4 as uuid } from 'uuid';
+import { ShoppingCart } from '../../oop/aggregate/shopping-cart';
+import { sendCreated } from '../../tools/api';
+import { getETagFromIfMatch, getWeakETagValue } from '../../tools/etag';
+import { getEventStore } from '../../tools/eventStore';
 import {
   assertNotEmptyString,
   assertPositiveNumber,
 } from '../../tools/validation';
-import { sendCreated } from '../../tools/api';
-import { getEventStore } from '../../tools/eventStore';
-import { v4 as uuid } from 'uuid';
-import { handleCommand } from './commandHandler';
-import {
-  PricedProductItem,
-  ProductItem,
-  ShoppingCart,
-  evolve,
-} from './shoppingCart';
-import { EventStoreDBClient } from '@eventstore/db-client';
 import {
   addProductItemToShoppingCart,
   cancelShoppingCart,
   confirmShoppingCart,
   openShoppingCart,
   removeProductItemFromShoppingCart,
-} from './businessLogic';
-import { getETagFromIfMatch, getWeakETagValue } from '../../tools/etag';
+} from './business-logic';
+import { handleCommand } from './command-handler';
+import { evolve } from './shopping-cart';
 
 export const mapShoppingCartStreamId = (id: string) => `shopping_cart-${id}`;
 

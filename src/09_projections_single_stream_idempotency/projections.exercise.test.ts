@@ -1,3 +1,8 @@
+import { PricedProductItem } from '#core/cart/product-item.interface';
+import { ShoppingCartDetails } from '#core/cart/shopping-cart-details.type';
+import { ShoppingCartStatus } from '#core/cart/shopping-cart-status.enum';
+import { ShoppingCartEvent } from '#core/cart/shopping-cart.event.type';
+import { ShoppingCartShortInfo } from '#core/cart/shopping-cart.type';
 import { v4 as uuid } from 'uuid';
 import {
   ShoppingCartDetailsProjection,
@@ -6,83 +11,11 @@ import {
 import { getDatabase } from './tools/database';
 import { getEventStore } from './tools/eventStore';
 
-export interface ProductItem {
-  productId: string;
-  quantity: number;
-}
-
-export type PricedProductItem = ProductItem & {
-  unitPrice: number;
-};
-
-export type ShoppingCartEvent =
-  | {
-      type: 'ShoppingCartOpened';
-      data: {
-        shoppingCartId: string;
-        clientId: string;
-        openedAt: string;
-      };
-    }
-  | {
-      type: 'ProductItemAddedToShoppingCart';
-      data: {
-        shoppingCartId: string;
-        productItem: PricedProductItem;
-      };
-    }
-  | {
-      type: 'ProductItemRemovedFromShoppingCart';
-      data: {
-        shoppingCartId: string;
-        productItem: PricedProductItem;
-      };
-    }
-  | {
-      type: 'ShoppingCartConfirmed';
-      data: {
-        shoppingCartId: string;
-        confirmedAt: string;
-      };
-    }
-  | {
-      type: 'ShoppingCartCanceled';
-      data: {
-        shoppingCartId: string;
-        canceledAt: string;
-      };
-    };
-
-export enum ShoppingCartStatus {
-  Pending = 'Pending',
-  Confirmed = 'Confirmed',
-  Canceled = 'Canceled',
-}
-
-export type ShoppingCartDetails = {
-  id: string;
-  clientId: string;
-  status: ShoppingCartStatus;
-  productItems: PricedProductItem[];
-  openedAt: string;
-  confirmedAt?: string;
-  canceledAt?: string;
-  totalAmount: number;
-  totalItemsCount: number;
-};
-
-export type ShoppingCartShortInfo = {
-  id: string;
-  clientId: string;
-  totalAmount: number;
-  totalItemsCount: number;
-};
-
 describe('Getting state from events', () => {
   it('Should return the state from the sequence of events', () => {
-    const openedAt = new Date().toISOString();
-    const confirmedAt = new Date().toISOString();
-    const canceledAt = new Date().toISOString();
+    const openedAt = new Date();
+    const confirmedAt = new Date();
+    const cancelledAt = new Date();
 
     const shoesId = uuid();
 
@@ -205,10 +138,10 @@ describe('Getting state from events', () => {
         },
       },
       {
-        type: 'ShoppingCartCanceled',
+        type: 'ShoppingCartCancelled',
         data: {
           shoppingCartId: cancelledShoppingCartId,
-          canceledAt,
+          cancelledAt: cancelledAt,
         },
       },
     );
@@ -300,10 +233,10 @@ describe('Getting state from events', () => {
     expect(shoppingCart).toEqual({
       id: cancelledShoppingCartId,
       clientId,
-      status: ShoppingCartStatus.Canceled,
+      status: ShoppingCartStatus.Cancelled,
       productItems: [dress],
       openedAt,
-      canceledAt,
+      cancelledAt,
       totalAmount: dress.unitPrice * dress.quantity,
       totalItemsCount: dress.quantity,
     });

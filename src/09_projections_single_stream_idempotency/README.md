@@ -9,7 +9,7 @@ With the [Database](./tools/database.ts) interface representing the sample datab
 2. View with short information about pending shopping carts. It's intended to be used as list view for administration:
    - total amount of products in the basket,
    - total number of products
-   - confirmed and canceled shopping carts should not be visible.
+   - confirmed and cancelled shopping carts should not be visible.
 
 Add event handlers registrations in [projections.exercise.test.ts](./projections.exercise.test.ts) calling [eventStore.subscribe](./tools/eventStore.ts) method.
 
