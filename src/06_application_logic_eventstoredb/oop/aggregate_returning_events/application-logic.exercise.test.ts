@@ -1,6 +1,6 @@
 import { ShoppingCartErrors } from '#core/cart/shopping-cart.errors';
 import { ShoppingCartEvent } from '#core/cart/shopping-cart.event.type';
-import { getEventStoreDBTestClient } from '#core/testing/eventStoreDB';
+import { getEventStoreDBTestClient } from '#core/testing/event-store-DB';
 import { EventStoreDBClient } from '@eventstore/db-client';
 import { Application } from 'express';
 import request from 'supertest';

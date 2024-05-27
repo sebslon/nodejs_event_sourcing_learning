@@ -2,7 +2,7 @@ import { PricedProductItem } from '#core/cart/product-item.interface';
 import { ShoppingCartStatus } from '#core/cart/shopping-cart-status.enum';
 import { ShoppingCartEvent } from '#core/cart/shopping-cart.event.type';
 import { ShoppingCart } from '#core/cart/shopping-cart.type';
-import { getEventStoreDBTestClient } from '#core/testing/eventStoreDB';
+import { getEventStoreDBTestClient } from '#core/testing/event-store-DB';
 import {
   ANY,
   AppendResult,

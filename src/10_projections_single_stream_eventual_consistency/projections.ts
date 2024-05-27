@@ -3,7 +3,7 @@ import { ShoppingCartStatus } from '#core/cart/shopping-cart-status.enum';
 import { ShoppingCartEvent } from '#core/cart/shopping-cart.event.type';
 import { ShoppingCartShortInfo } from '#core/cart/shopping-cart.type';
 import { DocumentsCollection } from './tools/database';
-import { EventHandler } from './tools/eventStore';
+import { EventHandler } from './tools/event-store';
 
 export const getAndStore = <T>(
   collection: DocumentsCollection<T>,

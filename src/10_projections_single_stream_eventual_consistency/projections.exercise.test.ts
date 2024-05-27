@@ -9,7 +9,7 @@ import {
   ShoppingCartShortInfoProjection,
 } from './projections';
 import { getDatabase } from './tools/database';
-import { getEventStore } from './tools/eventStore';
+import { getEventStore } from './tools/event-store';
 
 describe('Getting state from events', () => {
   it('Should return the state from the sequence of events', () => {

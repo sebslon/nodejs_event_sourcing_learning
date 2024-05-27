@@ -2,7 +2,7 @@ import { EventStoreDBClient } from '@eventstore/db-client';
 import {
   EventStoreDBContainer,
   StartedEventStoreDBContainer,
-} from './eventStoreDBContainer';
+} from './event-store-DB-container';
 
 let esdbContainer: StartedEventStoreDBContainer;
 

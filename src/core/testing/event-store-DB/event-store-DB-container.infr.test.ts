@@ -3,7 +3,7 @@ import { v4 as uuid } from 'uuid';
 import {
   EventStoreDBContainer,
   StartedEventStoreDBContainer,
-} from './eventStoreDBContainer';
+} from './event-store-DB-container';
 
 describe('EventStoreDBContainer', () => {
   jest.setTimeout(180_000);

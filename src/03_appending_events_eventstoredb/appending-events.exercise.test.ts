@@ -1,6 +1,6 @@
 import { PricedProductItem } from '#core/cart/product-item.interface';
 import { ShoppingCartEvent } from '#core/cart/shopping-cart.event.type';
-import { getEventStoreDBTestClient } from '#core/testing/eventStoreDB';
+import { getEventStoreDBTestClient } from '#core/testing/event-store-DB';
 import { EventStoreDBClient } from '@eventstore/db-client';
 import { v4 as uuid } from 'uuid';
 
