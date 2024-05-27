@@ -1,5 +1,5 @@
 export const merge = <T>(
-  array: T[],
+  items: T[],
   item: T,
   where: (current: T) => boolean,
   onExisting: (current: T) => T,
@@ -7,30 +7,27 @@ export const merge = <T>(
 ) => {
   let wasFound = false;
 
-  const result = array
-    // merge the existing item if matches condition
+  // merge the existing item if matches condition
+  const result = items
     .map((p: T) => {
       if (!where(p)) return p;
 
       wasFound = true;
+
       return onExisting(p);
     })
-    // filter out item if undefined was returned
-    // for cases of removal
-    .filter((p) => p !== undefined)
-    // make TypeScript happy
+    .filter((p) => p !== undefined) // filter out item if undefined was returned - for cases of removal
     .map((p) => {
       if (!p) throw Error('That should not happen');
 
       return p;
-    });
+    }); // make TypeScript happy
 
-  // if item was not found and onNotFound action is defined
-  // try to generate new item
+  // if item was not found and onNotFound action is defined, try to generate new item
   if (!wasFound) {
     const result = onNotFound();
 
-    if (result !== undefined) return [...array, item];
+    if (result !== undefined) return [...items, item];
   }
 
   return result;

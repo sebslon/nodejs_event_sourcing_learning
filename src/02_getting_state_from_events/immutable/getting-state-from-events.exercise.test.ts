@@ -1,13 +1,8 @@
 import { PricedProductItem } from '#core/cart/product-item.interface';
 import { ShoppingCartStatus } from '#core/cart/shopping-cart-status.enum';
 import { ShoppingCartEvent } from '#core/cart/shopping-cart.event.type';
-import { ShoppingCart } from '#core/cart/shopping-cart.type';
 import { v4 as uuid } from 'uuid';
-
-export const getShoppingCart = (_events: ShoppingCartEvent[]): ShoppingCart => {
-  // 1. Add logic here
-  throw new Error('Not implemented!');
-};
+import { getShoppingCart } from '../../core/cart/functions/get-shopping-cart';
 
 describe('Events definition', () => {
   it('all event types should be defined', () => {
@@ -39,7 +34,6 @@ describe('Events definition', () => {
     };
 
     const events: ShoppingCartEvent[] = [
-      // 2. Put your sample events here
       {
         type: 'ShoppingCartOpened',
         data: {
@@ -84,7 +78,7 @@ describe('Events definition', () => {
 
     const shoppingCart = getShoppingCart(events);
 
-    expect(shoppingCart).toBe({
+    expect(shoppingCart).toStrictEqual({
       id: shoppingCartId,
       clientId,
       status: ShoppingCartStatus.Cancelled,

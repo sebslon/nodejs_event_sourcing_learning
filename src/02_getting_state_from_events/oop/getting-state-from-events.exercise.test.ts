@@ -2,51 +2,7 @@ import { PricedProductItem } from '#core/cart/product-item.interface';
 import { ShoppingCartStatus } from '#core/cart/shopping-cart-status.enum';
 import { ShoppingCartEvent } from '#core/cart/shopping-cart.event.type';
 import { v4 as uuid } from 'uuid';
-
-export class ShoppingCart {
-  constructor(
-    private _id: string,
-    private _clientId: string,
-    private _status: ShoppingCartStatus,
-    private _openedAt: Date,
-    private _productItems: PricedProductItem[] = [],
-    private _confirmedAt?: Date,
-    private _cancelledAt?: Date,
-  ) {}
-
-  get id() {
-    return this._id;
-  }
-
-  get clientId() {
-    return this._clientId;
-  }
-
-  get status() {
-    return this._status;
-  }
-
-  get openedAt() {
-    return this._openedAt;
-  }
-
-  get productItems() {
-    return this._productItems;
-  }
-
-  get confirmedAt() {
-    return this._confirmedAt;
-  }
-
-  get cancelledAt() {
-    return this._cancelledAt;
-  }
-}
-
-export const getShoppingCart = (_events: ShoppingCartEvent[]): ShoppingCart => {
-  // 1. Add logic here
-  throw new Error('Not implemented!');
-};
+import { ShoppingCart } from '../../core/cart/oop/shopping-cart';
 
 describe('Events definition', () => {
   it('all event types should be defined', () => {
@@ -121,10 +77,11 @@ describe('Events definition', () => {
       },
     ];
 
-    const shoppingCart = getShoppingCart(events);
+    const shoppingCart = ShoppingCart.from(events);
 
     expect(shoppingCart).toBeInstanceOf(ShoppingCart);
-    expect(JSON.stringify(shoppingCart)).toBe(
+
+    expect(JSON.stringify(shoppingCart)).toStrictEqual(
       JSON.stringify(
         new ShoppingCart(
           shoppingCartId,
