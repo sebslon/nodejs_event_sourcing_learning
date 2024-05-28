@@ -3,15 +3,7 @@ import { ShoppingCartEvent } from '#core/cart/shopping-cart.event.type';
 import { getEventStoreDBTestClient } from '#core/testing/event-store-DB';
 import { EventStoreDBClient } from '@eventstore/db-client';
 import { v4 as uuid } from 'uuid';
-
-const appendToStream = async (
-  _eventStore: EventStoreDBClient,
-  _streamName: string,
-  _events: ShoppingCartEvent[],
-): Promise<bigint> => {
-  // TODO: Fill append events logic here.
-  return Promise.reject('Not implemented!');
-};
+import { appendToStream } from '../core/cart/functions/append-to-stream.function';
 
 describe('Appending events', () => {
   let eventStore: EventStoreDBClient;
@@ -30,7 +22,6 @@ describe('Appending events', () => {
     };
 
     const events: ShoppingCartEvent[] = [
-      // 2. Put your sample events here
       {
         type: 'ShoppingCartOpened',
         data: {
@@ -68,12 +59,8 @@ describe('Appending events', () => {
 
     const streamName = `shopping_cart-${shoppingCartId}`;
 
-    const appendedEventsCount = await appendToStream(
-      eventStore,
-      streamName,
-      events,
-    );
+    const appendedResult = await appendToStream(eventStore, streamName, events);
 
-    expect(appendedEventsCount).toBe(BigInt(events.length - 1));
+    expect(Number(appendedResult.nextExpectedRevision)).toBe(events.length - 1);
   });
 });

@@ -12,8 +12,9 @@ export const getEventStoreDBTestClient = async (
   let connectionString;
 
   if (useTestContainers) {
-    if (!esdbContainer)
+    if (!esdbContainer) {
       esdbContainer = await new EventStoreDBContainer().start();
+    }
 
     connectionString = esdbContainer.getConnectionString();
   } else {
