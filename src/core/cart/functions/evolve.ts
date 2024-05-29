@@ -13,7 +13,7 @@ export function evolve(
       return {
         id: event.shoppingCartId,
         clientId: event.clientId,
-        openedAt: event.openedAt,
+        openedAt: new Date(event.openedAt),
         productItems: [],
         status: ShoppingCartStatus.Pending,
       };
@@ -39,13 +39,13 @@ export function evolve(
       return {
         ...state,
         status: ShoppingCartStatus.Confirmed,
-        confirmedAt: event.confirmedAt,
+        confirmedAt: new Date(event.confirmedAt),
       };
     case 'ShoppingCartCancelled':
       return {
         ...state,
         status: ShoppingCartStatus.Cancelled,
-        cancelledAt: event.cancelledAt,
+        cancelledAt: new Date(event.cancelledAt),
       };
     default: {
       const _: never = type;

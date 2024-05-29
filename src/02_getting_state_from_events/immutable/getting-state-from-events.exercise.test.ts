@@ -2,10 +2,10 @@ import { PricedProductItem } from '#core/cart/product-item.interface';
 import { ShoppingCartStatus } from '#core/cart/shopping-cart-status.enum';
 import { ShoppingCartEvent } from '#core/cart/shopping-cart.event.type';
 import { v4 as uuid } from 'uuid';
-import { getShoppingCart } from '../../core/cart/functions/get-shopping-cart';
+import { applyShoppingCartEvents } from '../../core/cart/functions/get-shopping-cart';
 
-describe('Events definition', () => {
-  it('all event types should be defined', () => {
+describe('Getting state from events', () => {
+  it('should apply events and create a cart from them', () => {
     const shoppingCartId = uuid();
 
     const clientId = uuid();
@@ -76,7 +76,7 @@ describe('Events definition', () => {
       },
     ];
 
-    const shoppingCart = getShoppingCart(events);
+    const shoppingCart = applyShoppingCartEvents(events);
 
     expect(shoppingCart).toStrictEqual({
       id: shoppingCartId,
