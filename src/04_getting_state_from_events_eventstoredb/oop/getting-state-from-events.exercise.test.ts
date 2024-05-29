@@ -2,144 +2,21 @@ import { PricedProductItem } from '#core/cart/product-item.interface';
 import { ShoppingCartStatus } from '#core/cart/shopping-cart-status.enum';
 import { ShoppingCartEvent } from '#core/cart/shopping-cart.event.type';
 import { getEventStoreDBTestClient } from '#core/testing/event-store-DB';
-import {
-  ANY,
-  AppendResult,
-  EventStoreDBClient,
-  jsonEvent,
-} from '@eventstore/db-client';
+import { EventStoreDBClient } from '@eventstore/db-client';
 import { v4 as uuid } from 'uuid';
+import { appendToStream } from '../../core/cart/functions/append-to-stream.function';
+import { EventStoreDBRepository } from '../../core/cart/oop/event-store-db.repository';
+import { ShoppingCart } from '../../core/cart/oop/shopping-cart';
+import { ShoppingCartService } from '../../core/cart/oop/shopping-cart.service';
 
-export class ShoppingCart {
-  constructor(
-    private _id: string,
-    private _clientId: string,
-    private _status: ShoppingCartStatus,
-    private _openedAt: Date,
-    private _productItems: PricedProductItem[] = [],
-    private _confirmedAt?: Date,
-    private _cancelledAt?: Date,
-  ) {}
-
-  get id() {
-    return this._id;
-  }
-
-  get clientId() {
-    return this._clientId;
-  }
-
-  get status() {
-    return this._status;
-  }
-
-  get openedAt() {
-    return this._openedAt;
-  }
-
-  get productItems() {
-    return this._productItems;
-  }
-
-  get confirmedAt() {
-    return this._confirmedAt;
-  }
-
-  get cancelledAt() {
-    return this._cancelledAt;
-  }
-
-  public evolve = ({ type, data: event }: ShoppingCartEvent): void => {
-    switch (type) {
-      case 'ShoppingCartOpened': {
-        this._id = event.shoppingCartId;
-        this._clientId = event.clientId;
-        this._status = ShoppingCartStatus.Pending;
-        this._openedAt = event.openedAt;
-        this._productItems = [];
-        return;
-      }
-      case 'ProductItemAddedToShoppingCart': {
-        const {
-          productItem: { productId, quantity, unitPrice },
-        } = event;
-
-        const currentProductItem = this._productItems.find(
-          (pi) => pi.productId === productId && pi.unitPrice === unitPrice,
-        );
-
-        if (currentProductItem) {
-          currentProductItem.quantity += quantity;
-        } else {
-          this._productItems.push(event.productItem);
-        }
-        return;
-      }
-      case 'ProductItemRemovedFromShoppingCart': {
-        const {
-          productItem: { productId, quantity, unitPrice },
-        } = event;
-
-        const currentProductItem = this._productItems.find(
-          (pi) => pi.productId === productId && pi.unitPrice === unitPrice,
-        );
-
-        if (!currentProductItem) {
-          return;
-        }
-
-        currentProductItem.quantity -= quantity;
-
-        if (currentProductItem.quantity <= 0) {
-          this._productItems.splice(
-            this._productItems.indexOf(currentProductItem),
-            1,
-          );
-        }
-        return;
-      }
-      case 'ShoppingCartConfirmed': {
-        this._status = ShoppingCartStatus.Confirmed;
-        this._confirmedAt = event.confirmedAt;
-        return;
-      }
-      case 'ShoppingCartCancelled': {
-        this._status = ShoppingCartStatus.Cancelled;
-        this._cancelledAt = event.cancelledAt;
-        return;
-      }
-    }
-  };
-}
-
-const appendToStream = async (
-  eventStore: EventStoreDBClient,
-  streamName: string,
-  events: ShoppingCartEvent[],
-): Promise<AppendResult> => {
-  const serializedEvents = events.map(jsonEvent);
-
-  return eventStore.appendToStream(streamName, serializedEvents, {
-    expectedRevision: ANY,
-  });
-};
-
-export const getShoppingCart = (
-  _eventStore: EventStoreDBClient,
-  _streamName: string,
-): Promise<ShoppingCart> => {
-  // 1. Add logic here
-  return Promise.reject('Not implemented!');
-};
-
-describe('Events definition', () => {
+describe('[OOP] - Getting state from events', () => {
   let eventStore: EventStoreDBClient;
 
   beforeAll(async () => {
     eventStore = await getEventStoreDBTestClient();
   });
 
-  it('all event types should be defined', async () => {
+  it('should read events from stream and apply them creating a cart', async () => {
     const shoppingCartId = uuid();
 
     const clientId = uuid();
@@ -215,16 +92,36 @@ describe('Events definition', () => {
 
     await appendToStream(eventStore, streamName, events);
 
-    const shoppingCart = await getShoppingCart(eventStore, streamName);
+    const repository = new EventStoreDBRepository(
+      eventStore,
+      () => ShoppingCart.from([]),
+      ShoppingCart.getStreamId,
+    );
 
-    expect(shoppingCart).toBe({
-      id: shoppingCartId,
+    const shoppingCartService = new ShoppingCartService(repository);
+
+    const shoppingCart = await shoppingCartService.get(shoppingCartId);
+
+    if (!shoppingCart) {
+      throw new Error('Shopping cart not found');
+    }
+
+    expect(shoppingCart).toBeDefined();
+
+    expect(shoppingCart.cancelledAt).toBeInstanceOf(Date);
+    expect(shoppingCart.confirmedAt).toBeInstanceOf(Date);
+    expect(shoppingCart.openedAt).toBeInstanceOf(Date);
+
+    const { evolve: _, ...actual } = shoppingCart;
+    const { evolve: __, ...expected } = new ShoppingCart(
+      shoppingCartId,
       clientId,
-      status: ShoppingCartStatus.Cancelled,
-      productItems: [pairOfShoes, tShirt],
+      ShoppingCartStatus.Cancelled,
       openedAt,
+      [pairOfShoes, tShirt],
       confirmedAt,
       cancelledAt,
-    });
+    );
+    expect(actual).toStrictEqual(Object.assign({}, expected));
   });
 });

@@ -7,14 +7,14 @@ import { v4 as uuid } from 'uuid';
 import { appendToStream } from '../../core/cart/functions/append-to-stream.function';
 import { getShoppingCart } from '../../core/cart/functions/get-shopping-cart';
 
-describe('Getting state from events from EventStoreDB', () => {
+describe('[FUNC] - Getting state from events from EventStoreDB', () => {
   let eventStore: EventStoreDBClient;
 
   beforeAll(async () => {
     eventStore = await getEventStoreDBTestClient();
   });
 
-  it('should read events from the stream and create a cart from them', async () => {
+  it('should read events from stream and apply them creating a cart', async () => {
     const shoppingCartId = uuid();
 
     const clientId = uuid();

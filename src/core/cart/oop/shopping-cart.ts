@@ -1,8 +1,9 @@
 import { PricedProductItem } from '../product-item.interface';
 import { ShoppingCartStatus } from '../shopping-cart-status.enum';
 import { ShoppingCartEvent } from '../shopping-cart.event.type';
+import { Evolves } from './interfaces/evolves.interface';
 
-export class ShoppingCart {
+export class ShoppingCart implements Evolves<ShoppingCartEvent> {
   constructor(
     private _id: string,
     private _clientId: string,
@@ -37,7 +38,7 @@ export class ShoppingCart {
     return this._confirmedAt;
   }
 
-  get canceledAt() {
+  get cancelledAt() {
     return this._cancelledAt;
   }
 
@@ -47,7 +48,7 @@ export class ShoppingCart {
         this._id = event.shoppingCartId;
         this._clientId = event.clientId;
         this._status = ShoppingCartStatus.Pending;
-        this._openedAt = event.openedAt;
+        this._openedAt = new Date(event.openedAt);
         this._productItems = [];
         return;
       }
@@ -95,13 +96,13 @@ export class ShoppingCart {
 
       case 'ShoppingCartConfirmed': {
         this._status = ShoppingCartStatus.Confirmed;
-        this._confirmedAt = event.confirmedAt;
+        this._confirmedAt = new Date(event.confirmedAt);
         return;
       }
 
       case 'ShoppingCartCancelled': {
         this._status = ShoppingCartStatus.Cancelled;
-        this._cancelledAt = event.cancelledAt;
+        this._cancelledAt = new Date(event.cancelledAt);
         return;
       }
 
@@ -112,6 +113,7 @@ export class ShoppingCart {
     }
   };
 
+  public static getStreamId = (id: string) => `shopping_cart-${id}`;
   public static from(events: ShoppingCartEvent[]): ShoppingCart {
     return events.reduce<ShoppingCart>(
       (state, event) => {
