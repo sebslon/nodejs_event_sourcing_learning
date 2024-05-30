@@ -4,7 +4,7 @@ import { ShoppingCartEvent } from '#core/cart/shopping-cart.event.type';
 import { getEventStoreDBTestClient } from '#core/testing/event-store-DB';
 import { EventStoreDBClient } from '@eventstore/db-client';
 import { v4 as uuid } from 'uuid';
-import { appendToStream } from '../../core/cart/functions/append-to-stream.function';
+import { appendToStream } from '../../core/cart/functions/append-to-stream';
 import { getShoppingCart } from '../../core/cart/functions/get-shopping-cart';
 
 describe('[FUNC] - Getting state from events from EventStoreDB', () => {

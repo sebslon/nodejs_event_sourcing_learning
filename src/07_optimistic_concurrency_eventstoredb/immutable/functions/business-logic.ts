@@ -3,7 +3,7 @@ import { CancelShoppingCart } from '#core/cart/commands/cancel-shopping-cart.com
 import { ConfirmShoppingCart } from '#core/cart/commands/confirm-shopping-cart.command';
 import { OpenShoppingCart } from '#core/cart/commands/open-shopping-cart.command';
 import { RemoveProductItemFromShoppingCart } from '#core/cart/commands/remove-product-item-from-shopping-cart.command';
-import { assertProductItemExists } from '#core/cart/functions/assert-product-item-exists.function';
+import { assertProductItemExists } from '#core/cart/functions/assert-product-item-exists';
 import { ShoppingCartStatus } from '#core/cart/shopping-cart-status.enum';
 import { ShoppingCartErrors } from '#core/cart/shopping-cart.errors';
 import { ShoppingCartEvent } from '#core/cart/shopping-cart.event.type';

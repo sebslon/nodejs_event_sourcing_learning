@@ -1,6 +1,7 @@
-import { Event } from '../event.type';
+import { EventStore } from '../../shared/event-store.interface';
+import { Event } from '../../shared/event.type';
 
-export const getEventStore = () => {
+export const getInMemoryEventStore = (): EventStore => {
   const streams = new Map<string, Event[]>();
 
   return {

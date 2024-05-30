@@ -1,4 +1,4 @@
-import { assertProductItemExists } from '#core/cart/functions/assert-product-item-exists.function';
+import { assertProductItemExists } from '#core/cart/functions/assert-product-item-exists';
 import {
   ShoppingCartState,
   emptyShoppingCart,

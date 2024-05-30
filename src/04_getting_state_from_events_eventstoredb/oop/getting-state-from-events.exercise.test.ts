@@ -4,7 +4,7 @@ import { ShoppingCartEvent } from '#core/cart/shopping-cart.event.type';
 import { getEventStoreDBTestClient } from '#core/testing/event-store-DB';
 import { EventStoreDBClient } from '@eventstore/db-client';
 import { v4 as uuid } from 'uuid';
-import { appendToStream } from '../../core/cart/functions/append-to-stream.function';
+import { appendToStream } from '../../core/cart/functions/append-to-stream';
 import { EventStoreDBRepository } from '../../core/cart/oop/event-store-db.repository';
 import { ShoppingCart } from '../../core/cart/oop/shopping-cart';
 import { ShoppingCartService } from '../../core/cart/oop/shopping-cart.service';
@@ -45,7 +45,6 @@ describe('[OOP] - Getting state from events', () => {
     };
 
     const events: ShoppingCartEvent[] = [
-      // 2. Put your sample events here
       {
         type: 'ShoppingCartOpened',
         data: {

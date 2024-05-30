@@ -4,24 +4,22 @@ import { CancelShoppingCart } from '#core/cart/commands/cancel-shopping-cart.com
 import { ConfirmShoppingCart } from '#core/cart/commands/confirm-shopping-cart.command';
 import { OpenShoppingCart } from '#core/cart/commands/open-shopping-cart.command';
 import { RemoveProductItemFromShoppingCart } from '#core/cart/commands/remove-product-item-from-shopping-cart.command';
+import { addProductItemToShoppingCart } from '#core/cart/functions/domain/add-product-item-to-shopping-cart';
+import { cancelShoppingCart } from '#core/cart/functions/domain/cancel-shopping-cart';
+import { confirmShoppingCart } from '#core/cart/functions/domain/confirm-shopping-cart';
+import { openShoppingCart } from '#core/cart/functions/domain/open-shopping-cart';
+import { removeProductItemFromShoppingCart } from '#core/cart/functions/domain/remove-product-item-from-shopping-cart';
+import { applyShoppingCartEvents } from '#core/cart/functions/get-shopping-cart';
 import { PricedProductItem } from '#core/cart/product-item.interface';
 import { ShoppingCartStatus } from '#core/cart/shopping-cart-status.enum';
 import { ShoppingCartErrors } from '#core/cart/shopping-cart.errors';
 import { ShoppingCartEvent } from '#core/cart/shopping-cart.event.type';
-import { getEventStore } from '#core/shared/functions/get-event-store.function';
+import { getInMemoryEventStore } from '#core/testing/event-store-in-memory';
 import { v4 as uuid } from 'uuid';
-import {
-  addProductItemToShoppingCart,
-  cancelShoppingCart,
-  confirmShoppingCart,
-  openShoppingCart,
-  removeProductItemFromShoppingCart,
-} from './business-logic';
-import { getShoppingCart } from './shopping-cart';
 
 describe('Business logic', () => {
   it('Should handle commands correctly', () => {
-    const eventStore = getEventStore();
+    const eventStore = getInMemoryEventStore();
     const shoppingCartId = uuid();
 
     const clientId = uuid();
@@ -49,69 +47,75 @@ describe('Business logic', () => {
       unitPrice: 5,
     };
 
-    let result: ShoppingCartEvent[] = [];
-
     // Open
-    const open: OpenShoppingCart = {
+    const openCommand: OpenShoppingCart = {
       type: 'OpenShoppingCart',
       data: { shoppingCartId, clientId, now: openedAt },
     };
-    result = [openShoppingCart(open)];
-    eventStore.appendToStream(shoppingCartId, ...result);
+    const openEvent = openShoppingCart(openCommand);
+
+    eventStore.appendToStream(shoppingCartId, openEvent);
+
+    let cart = applyShoppingCartEvents(eventStore.readStream(shoppingCartId));
 
     // Add Two Pair of Shoes
     const addTwoPairsOfShoes: AddProductItemToShoppingCart = {
       type: 'AddProductItemToShoppingCart',
       data: { shoppingCartId, productItem: twoPairsOfShoes },
     };
+    const addProductItemEvent = addProductItemToShoppingCart(
+      addTwoPairsOfShoes,
+      cart,
+    );
+    eventStore.appendToStream(shoppingCartId, addProductItemEvent);
 
-    let state = getShoppingCart(eventStore.readStream(shoppingCartId));
-    result = [addProductItemToShoppingCart(addTwoPairsOfShoes, state)];
-
-    eventStore.appendToStream(shoppingCartId, ...result);
+    cart = applyShoppingCartEvents(eventStore.readStream(shoppingCartId));
 
     // Add T-Shirt
     const addTShirt: AddProductItemToShoppingCart = {
       type: 'AddProductItemToShoppingCart',
       data: { shoppingCartId, productItem: tShirt },
     };
+    const addProductItemEvent2 = addProductItemToShoppingCart(addTShirt, cart);
 
-    state = getShoppingCart(eventStore.readStream(shoppingCartId));
-    result = [addProductItemToShoppingCart(addTShirt, state)];
-    eventStore.appendToStream(shoppingCartId, ...result);
+    eventStore.appendToStream(shoppingCartId, addProductItemEvent2);
+
+    cart = applyShoppingCartEvents(eventStore.readStream(shoppingCartId));
 
     // Remove pair of shoes
     const removePairOfShoes: RemoveProductItemFromShoppingCart = {
       type: 'RemoveProductItemFromShoppingCart',
       data: { shoppingCartId, productItem: pairOfShoes },
     };
+    const removeProductItemEvent = removeProductItemFromShoppingCart(
+      removePairOfShoes,
+      cart,
+    );
 
-    state = getShoppingCart(eventStore.readStream(shoppingCartId));
-    result = [removeProductItemFromShoppingCart(removePairOfShoes, state)];
-    eventStore.appendToStream(shoppingCartId, ...result);
+    eventStore.appendToStream(shoppingCartId, removeProductItemEvent);
+
+    cart = applyShoppingCartEvents(eventStore.readStream(shoppingCartId));
 
     // Confirm
     const confirm: ConfirmShoppingCart = {
       type: 'ConfirmShoppingCart',
       data: { shoppingCartId, now: confirmedAt },
     };
+    const confirmEvent = confirmShoppingCart(confirm, cart);
 
-    state = getShoppingCart(eventStore.readStream(shoppingCartId));
-    result = [confirmShoppingCart(confirm, state)];
-    eventStore.appendToStream(shoppingCartId, ...result);
+    eventStore.appendToStream(shoppingCartId, confirmEvent);
+
+    cart = applyShoppingCartEvents(eventStore.readStream(shoppingCartId));
 
     // Try Cancel
     const cancel: CancelShoppingCart = {
       type: 'CancelShoppingCart',
       data: { shoppingCartId, now: cancelledAt },
     };
-    const onCancel = () => {
-      state = getShoppingCart(eventStore.readStream(shoppingCartId));
-      result = [cancelShoppingCart(cancel, state)];
-      eventStore.appendToStream(shoppingCartId, ...result);
-    };
 
-    expect(onCancel).toThrow(ShoppingCartErrors.CART_IS_ALREADY_CLOSED);
+    expect(() => cancelShoppingCart(cancel, cart)).toThrow(
+      ShoppingCartErrors.CART_IS_ALREADY_CLOSED,
+    );
 
     const events = eventStore.readStream<ShoppingCartEvent>(shoppingCartId);
 
@@ -159,9 +163,13 @@ describe('Business logic', () => {
       // },
     ]);
 
-    const shoppingCart = getShoppingCart(events);
+    expect(
+      events.find((e) => e.type === 'ShoppingCartCancelled'),
+    ).toBeUndefined();
 
-    expect(shoppingCart).toStrictEqual({
+    const state = applyShoppingCartEvents(events);
+
+    expect(state).toStrictEqual({
       id: shoppingCartId,
       clientId,
       status: ShoppingCartStatus.Confirmed,
