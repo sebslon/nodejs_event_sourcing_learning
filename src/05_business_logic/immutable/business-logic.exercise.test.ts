@@ -17,7 +17,7 @@ import { ShoppingCartEvent } from '#core/cart/shopping-cart.event.type';
 import { getInMemoryEventStore } from '#core/testing/event-store-in-memory';
 import { v4 as uuid } from 'uuid';
 
-describe('Business logic', () => {
+describe('Business logic (FUNC)', () => {
   it('Should handle commands correctly', () => {
     const eventStore = getInMemoryEventStore();
     const shoppingCartId = uuid();

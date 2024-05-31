@@ -8,13 +8,16 @@ import { PricedProductItem } from '#core/cart/product-item.interface';
 import { ShoppingCartStatus } from '#core/cart/shopping-cart-status.enum';
 import { ShoppingCartErrors } from '#core/cart/shopping-cart.errors';
 import { ShoppingCartEvent } from '#core/cart/shopping-cart.event.type';
+import { getInMemoryEventStore } from '#core/testing/event-store-in-memory';
 import { v4 as uuid } from 'uuid';
-import { getEventStore } from './core';
-import { ShoppingCart, getShoppingCart } from './shopping-cart';
+import {
+  ShoppingCart,
+  getShoppingCart,
+} from '../../core/cart/oop/shopping-cart';
 
-describe('Business logic', () => {
+describe('Business logic (OOP)', () => {
   it('Should handle commands correctly', () => {
-    const eventStore = getEventStore();
+    const eventStore = getInMemoryEventStore();
     const shoppingCartId = uuid();
 
     const clientId = uuid();
@@ -52,7 +55,10 @@ describe('Business logic', () => {
       open.data.clientId,
       open.data.now,
     );
-    eventStore.appendToStream(shoppingCartId, ...shoppingCart.uncommitedEvents);
+    eventStore.appendToStream(
+      shoppingCartId,
+      ...shoppingCart.dispatchUncommittedEvents(),
+    );
 
     // Add Two Pair of Shoes
     const addTwoPairsOfShoes: AddProductItemToShoppingCart = {
@@ -63,7 +69,10 @@ describe('Business logic', () => {
     shoppingCart = getShoppingCart(eventStore.readStream(shoppingCartId));
     shoppingCart.addProductItem(addTwoPairsOfShoes.data.productItem);
 
-    eventStore.appendToStream(shoppingCartId, ...shoppingCart.uncommitedEvents);
+    eventStore.appendToStream(
+      shoppingCartId,
+      ...shoppingCart.dispatchUncommittedEvents(),
+    );
 
     // Add T-Shirt
     const addTShirt: AddProductItemToShoppingCart = {
@@ -74,7 +83,10 @@ describe('Business logic', () => {
     shoppingCart = getShoppingCart(eventStore.readStream(shoppingCartId));
     shoppingCart.addProductItem(addTShirt.data.productItem);
 
-    eventStore.appendToStream(shoppingCartId, ...shoppingCart.uncommitedEvents);
+    eventStore.appendToStream(
+      shoppingCartId,
+      ...shoppingCart.dispatchUncommittedEvents(),
+    );
 
     // Remove pair of shoes
     const removePairOfShoes: RemoveProductItemFromShoppingCart = {
@@ -85,7 +97,10 @@ describe('Business logic', () => {
     shoppingCart = getShoppingCart(eventStore.readStream(shoppingCartId));
     shoppingCart.removeProductItem(removePairOfShoes.data.productItem);
 
-    eventStore.appendToStream(shoppingCartId, ...shoppingCart.uncommitedEvents);
+    eventStore.appendToStream(
+      shoppingCartId,
+      ...shoppingCart.dispatchUncommittedEvents(),
+    );
 
     // Confirm
     const confirm: ConfirmShoppingCart = {
@@ -96,26 +111,29 @@ describe('Business logic', () => {
     shoppingCart = getShoppingCart(eventStore.readStream(shoppingCartId));
     shoppingCart.confirm(confirm.data.now);
 
-    eventStore.appendToStream(shoppingCartId, ...shoppingCart.uncommitedEvents);
+    eventStore.appendToStream(
+      shoppingCartId,
+      ...shoppingCart.dispatchUncommittedEvents(),
+    );
 
     const cancel: CancelShoppingCart = {
       type: 'CancelShoppingCart',
       data: { shoppingCartId, now: cancelledAt },
     };
+
     const onCancel = () => {
       shoppingCart = getShoppingCart(eventStore.readStream(shoppingCartId));
       shoppingCart.cancel(cancel.data.now);
 
       eventStore.appendToStream(
         shoppingCartId,
-        ...shoppingCart.uncommitedEvents,
+        ...shoppingCart.dispatchUncommittedEvents(),
       );
     };
 
     expect(onCancel).toThrow(ShoppingCartErrors.CART_IS_ALREADY_CLOSED);
 
     const events = eventStore.readStream<ShoppingCartEvent>(shoppingCartId);
-
     expect(events).toEqual([
       {
         type: 'ShoppingCartOpened',
@@ -163,6 +181,7 @@ describe('Business logic', () => {
     shoppingCart = getShoppingCart(events);
 
     expect(shoppingCart).toBeInstanceOf(ShoppingCart);
+
     const actual = {
       shoppingCartId: shoppingCart.id,
       clientId: shoppingCart.clientId,
@@ -171,14 +190,15 @@ describe('Business logic', () => {
       productItems: shoppingCart.productItems,
       confirmedAt: shoppingCart.confirmedAt,
     };
-
-    expect(actual).toEqual({
+    const expected = {
       shoppingCartId,
       clientId,
       status: ShoppingCartStatus.Confirmed,
       openedAt,
       productItems: [pairOfShoes, tShirt],
       confirmedAt,
-    });
+    };
+
+    expect(actual).toEqual(expected);
   });
 });

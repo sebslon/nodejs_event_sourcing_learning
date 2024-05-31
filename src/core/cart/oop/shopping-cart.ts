@@ -1,9 +1,14 @@
+import { Aggregate } from '../../shared/aggregate';
 import { PricedProductItem } from '../product-item.interface';
 import { ShoppingCartStatus } from '../shopping-cart-status.enum';
+import { ShoppingCartErrors } from '../shopping-cart.errors';
 import { ShoppingCartEvent } from '../shopping-cart.event.type';
 import { Evolves } from './interfaces/evolves.interface';
 
-export class ShoppingCart implements Evolves<ShoppingCartEvent> {
+export class ShoppingCart
+  extends Aggregate<ShoppingCartEvent>
+  implements Evolves<ShoppingCartEvent>
+{
   constructor(
     private _id: string,
     private _clientId: string,
@@ -12,7 +17,9 @@ export class ShoppingCart implements Evolves<ShoppingCartEvent> {
     private _productItems: PricedProductItem[] = [],
     private _confirmedAt?: Date,
     private _cancelledAt?: Date,
-  ) {}
+  ) {
+    super();
+  }
 
   get id() {
     return this._id;
@@ -42,7 +49,9 @@ export class ShoppingCart implements Evolves<ShoppingCartEvent> {
     return this._cancelledAt;
   }
 
-  public evolve = ({ type, data: event }: ShoppingCartEvent): void => {
+  public evolve(ev: ShoppingCartEvent): void {
+    const { type, data: event } = structuredClone(ev);
+
     switch (type) {
       case 'ShoppingCartOpened': {
         this._id = event.shoppingCartId;
@@ -50,6 +59,7 @@ export class ShoppingCart implements Evolves<ShoppingCartEvent> {
         this._status = ShoppingCartStatus.Pending;
         this._openedAt = new Date(event.openedAt);
         this._productItems = [];
+
         return;
       }
 
@@ -58,7 +68,7 @@ export class ShoppingCart implements Evolves<ShoppingCartEvent> {
           productItem: { productId, quantity, unitPrice },
         } = event;
 
-        const currentProductItem = this._productItems.find(
+        const currentProductItem = this.productItems.find(
           (pi) => pi.productId === productId && pi.unitPrice === unitPrice,
         );
 
@@ -67,6 +77,7 @@ export class ShoppingCart implements Evolves<ShoppingCartEvent> {
         } else {
           this._productItems.push(event.productItem);
         }
+
         return;
       }
 
@@ -83,7 +94,7 @@ export class ShoppingCart implements Evolves<ShoppingCartEvent> {
           return;
         }
 
-        currentProductItem.quantity -= quantity;
+        currentProductItem.quantity = currentProductItem.quantity - quantity;
 
         if (currentProductItem.quantity <= 0) {
           this._productItems.splice(
@@ -91,6 +102,7 @@ export class ShoppingCart implements Evolves<ShoppingCartEvent> {
             1,
           );
         }
+
         return;
       }
 
@@ -111,9 +123,76 @@ export class ShoppingCart implements Evolves<ShoppingCartEvent> {
         throw new Error('Unknown Event Type');
       }
     }
-  };
+  }
+
+  public static open(shoppingCartId: string, clientId: string, openedAt: Date) {
+    const shoppingCart = ShoppingCart.from([]);
+
+    shoppingCart.enqueue({
+      type: 'ShoppingCartOpened',
+      data: {
+        shoppingCartId,
+        clientId,
+        openedAt,
+      },
+    });
+
+    return shoppingCart;
+  }
+
+  public addProductItem(productItem: PricedProductItem) {
+    this.assertCartIsPending();
+
+    this.enqueue({
+      type: 'ProductItemAddedToShoppingCart',
+      data: {
+        shoppingCartId: this.id,
+        productItem,
+      },
+    });
+  }
+
+  public removeProductItem(productItem: PricedProductItem) {
+    console.log();
+    this.assertCartIsPending();
+    this.assertProductItemExists(productItem);
+
+    this.enqueue({
+      type: 'ProductItemRemovedFromShoppingCart',
+      data: {
+        shoppingCartId: this.id,
+        productItem,
+      },
+    });
+  }
+
+  public confirm(confirmedAt: Date) {
+    this.assertCartIsPending();
+    this.assertIsNotEmpty();
+
+    this.enqueue({
+      type: 'ShoppingCartConfirmed',
+      data: {
+        shoppingCartId: this.id,
+        confirmedAt,
+      },
+    });
+  }
+
+  public cancel(cancelledAt: Date) {
+    this.assertCartIsPending();
+
+    this.enqueue({
+      type: 'ShoppingCartCancelled',
+      data: {
+        shoppingCartId: this.id,
+        cancelledAt,
+      },
+    });
+  }
 
   public static getStreamId = (id: string) => `shopping_cart-${id}`;
+
   public static from(events: ShoppingCartEvent[]): ShoppingCart {
     return events.reduce<ShoppingCart>(
       (state, event) => {
@@ -131,4 +210,38 @@ export class ShoppingCart implements Evolves<ShoppingCartEvent> {
       ),
     );
   }
+
+  private assertCartIsPending(): void {
+    if (this.status !== ShoppingCartStatus.Pending) {
+      throw new Error(ShoppingCartErrors.CART_IS_ALREADY_CLOSED);
+    }
+  }
+
+  private assertProductItemExists({
+    productId,
+    quantity,
+    unitPrice,
+  }: PricedProductItem): void {
+    const currentQuantity =
+      this.productItems.find(
+        (pi) => pi.productId === productId && pi.unitPrice === unitPrice,
+      )?.quantity ?? 0;
+
+    if (currentQuantity < quantity) {
+      throw new Error(ShoppingCartErrors.PRODUCT_ITEM_NOT_FOUND);
+    }
+  }
+
+  private assertIsNotEmpty(): void {
+    if (this.productItems.length === 0) {
+      throw new Error(ShoppingCartErrors.CART_IS_EMPTY);
+    }
+  }
 }
+
+export const getShoppingCart = (events: ShoppingCartEvent[]): ShoppingCart => {
+  return events.reduce<ShoppingCart>((state, event) => {
+    state.evolve(event);
+    return state;
+  }, ShoppingCart.from([]));
+};

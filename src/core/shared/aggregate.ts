@@ -7,11 +7,12 @@ export abstract class Aggregate<E extends Event> {
 
   protected enqueue = (event: E) => {
     this.#uncommitedEvents = [...this.#uncommitedEvents, event];
+
     this.evolve(event);
   };
 
-  dequeueUncommitedEvents = (): E[] => {
-    const events = this.#uncommitedEvents;
+  public dispatchUncommittedEvents = (): E[] => {
+    const events = [...this.#uncommitedEvents];
 
     this.#uncommitedEvents = [];
 

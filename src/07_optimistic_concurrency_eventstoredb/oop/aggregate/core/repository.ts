@@ -31,7 +31,7 @@ export class EventStoreRepository<
     )) ?? this.getInitialState();
 
   store = async (id: string, entity: Entity): Promise<void> => {
-    const events = entity.dequeueUncommitedEvents();
+    const events = entity.dispatchUncommittedEvents();
 
     if (events.length === 0) return;
 
