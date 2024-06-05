@@ -1,12 +1,12 @@
 import { RemoveProductItemFromShoppingCart } from '../../commands/remove-product-item-from-shopping-cart.command';
+import { ShoppingCartState } from '../../shopping-cart-state';
 import { ShoppingCartStatus } from '../../shopping-cart-status.enum';
 import { ShoppingCartErrors } from '../../shopping-cart.errors';
-import { ShoppingCart } from '../../shopping-cart.type';
 import { assertProductItemExists } from '../assert-product-item-exists';
 
 export function removeProductItemFromShoppingCart(
   { data: command }: RemoveProductItemFromShoppingCart,
-  shoppingCart: ShoppingCart,
+  shoppingCart: ShoppingCartState,
 ) {
   if (shoppingCart.status !== ShoppingCartStatus.Pending) {
     throw new Error(ShoppingCartErrors.CART_IS_ALREADY_CLOSED);

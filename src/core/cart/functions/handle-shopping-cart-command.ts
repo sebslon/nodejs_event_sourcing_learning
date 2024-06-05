@@ -1,14 +1,14 @@
-import { assertProductItemExists } from '#core/cart/functions/assert-product-item-exists';
-import { ShoppingCartStatus } from '#core/cart/shopping-cart-status.enum';
-import { ShoppingCartCommand } from '#core/cart/shopping-cart.command.type';
-import { ShoppingCartErrors } from '#core/cart/shopping-cart.errors';
-import { ShoppingCartEvent } from '#core/cart/shopping-cart.event.type';
-import { ShoppingCart } from '#core/cart/shopping-cart.type';
+import { ShoppingCartState } from '../shopping-cart-state';
+import { ShoppingCartStatus } from '../shopping-cart-status.enum';
+import { ShoppingCartCommand } from '../shopping-cart.command.type';
+import { ShoppingCartErrors } from '../shopping-cart.errors';
+import { ShoppingCartEvent } from '../shopping-cart.event.type';
+import { assertProductItemExists } from './assert-product-item-exists';
 
-export const decide = (
+export function handleShoppingCartCommand(
   { type, data: command }: ShoppingCartCommand,
-  shoppingCart: ShoppingCart,
-): ShoppingCartEvent => {
+  shoppingCart: ShoppingCartState,
+): ShoppingCartEvent {
   switch (type) {
     case 'OpenShoppingCart': {
       if (shoppingCart.status !== ShoppingCartStatus.Empty) {
@@ -89,4 +89,4 @@ export const decide = (
       throw new Error(ShoppingCartErrors.UNKNOWN_COMMAND_TYPE);
     }
   }
-};
+}

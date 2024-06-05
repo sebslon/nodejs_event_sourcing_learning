@@ -1,12 +1,12 @@
 import { CancelShoppingCart } from '../../commands/cancel-shopping-cart.command';
+import { ShoppingCartState } from '../../shopping-cart-state';
 import { ShoppingCartStatus } from '../../shopping-cart-status.enum';
 import { ShoppingCartErrors } from '../../shopping-cart.errors';
 import { ShoppingCartEvent } from '../../shopping-cart.event.type';
-import { ShoppingCart } from '../../shopping-cart.type';
 
 export function cancelShoppingCart(
   { data: command }: CancelShoppingCart,
-  shoppingCart: ShoppingCart,
+  shoppingCart: ShoppingCartState,
 ): ShoppingCartEvent {
   if (shoppingCart.status !== ShoppingCartStatus.Pending) {
     throw new Error(ShoppingCartErrors.CART_IS_ALREADY_CLOSED);

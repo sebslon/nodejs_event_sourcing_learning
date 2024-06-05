@@ -1,12 +1,13 @@
+import { EventStore } from '#core/shared/event-store.interface';
 import {
   ANY,
   EventStoreDBClient,
   StreamNotFoundError,
   jsonEvent,
 } from '@eventstore/db-client';
-import { Event } from './events';
+import { Event } from '../../shared/event.type';
 
-export const getEventStore = (eventStore: EventStoreDBClient) => {
+export const getEventStore = (eventStore: EventStoreDBClient): EventStore => {
   return {
     aggregateStream: async <Entity, E extends Event>(
       streamName: string,

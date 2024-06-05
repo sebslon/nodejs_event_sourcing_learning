@@ -2,13 +2,11 @@ import {
   PricedProductItem,
   ProductItem,
 } from '#core/cart/product-item.interface';
+import { assertNotEmptyString } from '#core/shared/validation/assert-not-empty-string';
+import { assertPositiveNumber } from '#core/shared/validation/assert-positive-number';
 import { Request, Response, Router } from 'express';
 import { v4 as uuid } from 'uuid';
-import { sendCreated } from '../../tools/api';
-import {
-  assertNotEmptyString,
-  assertPositiveNumber,
-} from '../../tools/validation';
+import { sendCreated } from '../../../core/testing/api';
 
 export const mapShoppingCartStreamId = (id: string) => `shopping_cart-${id}`;
 

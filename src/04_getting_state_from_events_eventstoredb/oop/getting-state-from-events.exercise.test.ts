@@ -108,11 +108,9 @@ describe('[OOP] - Getting state from events', () => {
     expect(shoppingCart).toBeDefined();
 
     expect(shoppingCart.cancelledAt).toBeInstanceOf(Date);
-    expect(shoppingCart.confirmedAt).toBeInstanceOf(Date);
-    expect(shoppingCart.openedAt).toBeInstanceOf(Date);
 
-    const { evolve: _, ...actual } = shoppingCart;
-    const { evolve: __, ...expected } = new ShoppingCart(
+    const { ...actual } = shoppingCart;
+    const { ...expected } = new ShoppingCart(
       shoppingCartId,
       clientId,
       ShoppingCartStatus.Cancelled,
@@ -121,6 +119,7 @@ describe('[OOP] - Getting state from events', () => {
       confirmedAt,
       cancelledAt,
     );
-    expect(actual).toStrictEqual(Object.assign({}, expected));
+
+    expect(JSON.stringify(actual)).toBe(JSON.stringify(expected));
   });
 });

@@ -1,13 +1,13 @@
 import { ShoppingCartErrors } from '#core/cart/shopping-cart.errors';
 import { ShoppingCartEvent } from '#core/cart/shopping-cart.event.type';
+import { getApplication } from '#core/testing/api';
 import { getEventStoreDBTestClient } from '#core/testing/event-store-DB';
+import { getEventStore } from '#core/testing/event-store-DB/get-event-store.function';
+import { TestResponse } from '#core/testing/test-response.type';
 import { EventStoreDBClient } from '@eventstore/db-client';
 import { Application } from 'express';
 import request from 'supertest';
 import { v4 as uuid } from 'uuid';
-import { getApplication } from '../../tools/api';
-import { getEventStore } from '../../tools/event-store';
-import { TestResponse } from '../../tools/testing';
 import { mapShoppingCartStreamId, shoppingCartApi } from './api';
 
 describe('Application logic', () => {

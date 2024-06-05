@@ -1,13 +1,13 @@
+import { ShoppingCartState } from '../shopping-cart-state';
 import { ShoppingCartStatus } from '../shopping-cart-status.enum';
 import { ShoppingCartEvent } from '../shopping-cart.event.type';
-import { ShoppingCart } from '../shopping-cart.type';
 import { addProductItem } from './add-product-item';
 import { removeProductItem } from './remove-product-item';
 
-export function evolve(
-  state: ShoppingCart,
+export function evolveShoppingCart(
+  state: ShoppingCartState,
   { type, data: event }: ShoppingCartEvent,
-) {
+): ShoppingCartState {
   switch (type) {
     case 'ShoppingCartOpened':
       return {
@@ -18,6 +18,8 @@ export function evolve(
         status: ShoppingCartStatus.Pending,
       };
     case 'ProductItemAddedToShoppingCart': {
+      if (state.status !== ShoppingCartStatus.Pending) return state;
+
       const { productItems } = state;
       const { productItem } = event;
 
@@ -27,6 +29,8 @@ export function evolve(
       };
     }
     case 'ProductItemRemovedFromShoppingCart': {
+      if (state.status !== ShoppingCartStatus.Pending) return state;
+
       const { productItems } = state;
       const { productItem } = event;
 
@@ -36,12 +40,16 @@ export function evolve(
       };
     }
     case 'ShoppingCartConfirmed':
+      if (state.status !== ShoppingCartStatus.Pending) return state;
+
       return {
         ...state,
         status: ShoppingCartStatus.Confirmed,
         confirmedAt: new Date(event.confirmedAt),
       };
     case 'ShoppingCartCancelled':
+      if (state.status === ShoppingCartStatus.Empty) return state;
+
       return {
         ...state,
         status: ShoppingCartStatus.Cancelled,

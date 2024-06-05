@@ -1,13 +1,13 @@
 import { ShoppingCartErrors } from '#core/cart/shopping-cart.errors';
 import { ShoppingCartEvent } from '#core/cart/shopping-cart.event.type';
 import { getEventStoreDBTestClient } from '#core/testing/event-store-DB';
+import { getEventStore } from '#core/testing/event-store-DB/get-event-store.function';
+import { TestResponse } from '#core/testing/test-response.type';
 import { EventStoreDBClient } from '@eventstore/db-client';
 import { Application } from 'express';
 import request from 'supertest';
 import { v4 as uuid } from 'uuid';
-import { getApplication } from '../../tools/api';
-import { getEventStore } from '../../tools/event-store';
-import { TestResponse } from '../../tools/testing';
+import { getApplication } from '../../core/testing/api';
 import { mapShoppingCartStreamId, shoppingCartApi } from './api';
 
 describe('Application logic', () => {
@@ -16,7 +16,7 @@ describe('Application logic', () => {
 
   beforeAll(async () => {
     eventStoreDB = await getEventStoreDBTestClient();
-    app = getApplication(shoppingCartApi);
+    app = getApplication(shoppingCartApi(eventStoreDB));
   });
 
   afterAll(() => eventStoreDB.dispose());
@@ -32,14 +32,9 @@ describe('Application logic', () => {
       .expect(201)) as TestResponse<{ id: string }>;
 
     const current = response.body;
-
-    if (!current.id) {
-      expect(false).toBeTruthy();
-      return;
-    }
-    expect(current.id).toBeDefined();
-
     const shoppingCartId = current.id;
+
+    expect(shoppingCartId).toBeDefined();
 
     ///////////////////////////////////////////////////
     // 2. Add Two Pair of Shoes
@@ -109,7 +104,7 @@ describe('Application logic', () => {
 
     const eventStore = getEventStore(eventStoreDB);
     const events = await eventStore.readStream<ShoppingCartEvent>(
-      mapShoppingCartStreamId(shoppingCartId),
+      mapShoppingCartStreamId(shoppingCartId!),
     );
 
     expect(events).toMatchObject([
@@ -143,7 +138,7 @@ describe('Application logic', () => {
         type: 'ShoppingCartConfirmed',
         data: {
           shoppingCartId,
-          //confirmedAt,
+          // confirmedAt,
         },
       },
       // This should fail

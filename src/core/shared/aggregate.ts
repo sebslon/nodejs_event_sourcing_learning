@@ -1,4 +1,4 @@
-import { Event } from '../../06_application_logic_eventstoredb/tools/events';
+import { Event } from './event.type';
 
 export abstract class Aggregate<E extends Event> {
   #uncommitedEvents: E[] = [];

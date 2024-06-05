@@ -1,13 +1,16 @@
 import { EventStoreDBClient } from '@eventstore/db-client';
 import { readStream } from '../../shared/functions/read-stream.function';
+import { ShoppingCartState } from '../shopping-cart-state';
 import { ShoppingCartEvent } from '../shopping-cart.event.type';
-import { ShoppingCart } from '../shopping-cart.type';
-import { evolve } from './evolve';
+import { evolveShoppingCart } from './evolve';
 
 export function applyShoppingCartEvents(
   events: ShoppingCartEvent[],
-): ShoppingCart {
-  return events.reduce<ShoppingCart>(evolve, {} as ShoppingCart);
+): ShoppingCartState {
+  return events.reduce<ShoppingCartState>(
+    evolveShoppingCart,
+    {} as ShoppingCartState,
+  );
 }
 
 export async function getShoppingCartEventsFromStream(
@@ -26,7 +29,7 @@ export async function getShoppingCartEventsFromStream(
 export async function getShoppingCart(
   eventStore: EventStoreDBClient,
   streamId: string,
-): Promise<ShoppingCart> {
+): Promise<ShoppingCartState> {
   const events = await getShoppingCartEventsFromStream(eventStore, streamId);
 
   return applyShoppingCartEvents(events);
