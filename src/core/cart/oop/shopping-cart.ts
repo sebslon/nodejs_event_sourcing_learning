@@ -153,7 +153,6 @@ export class ShoppingCart
   }
 
   public removeProductItem(productItem: PricedProductItem) {
-    console.log();
     this.assertCartIsPending();
     this.assertProductItemExists(productItem);
 

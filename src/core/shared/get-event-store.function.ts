@@ -5,7 +5,7 @@ import {
   StreamNotFoundError,
   jsonEvent,
 } from '@eventstore/db-client';
-import { Event } from '../../shared/event.type';
+import { Event } from './event.type';
 
 export const getEventStore = (eventStore: EventStoreDBClient): EventStore => {
   return {
@@ -23,11 +23,13 @@ export const getEventStore = (eventStore: EventStoreDBClient): EventStore => {
 
         for await (const { event } of eventStore.readStream(streamName)) {
           if (!event) continue;
+
           state = evolve(state, <E>{
             type: event.type,
             data: event.data,
           });
         }
+
         return state;
       } catch (error) {
         if (error instanceof StreamNotFoundError) {

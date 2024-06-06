@@ -1,7 +1,7 @@
 import { ShoppingCartErrors } from '#core/cart/shopping-cart.errors';
 import { ShoppingCartEvent } from '#core/cart/shopping-cart.event.type';
+import { getEventStore } from '#core/shared/get-event-store.function';
 import { getEventStoreDBTestClient } from '#core/testing/event-store-DB';
-import { getEventStore } from '#core/testing/event-store-DB/get-event-store.function';
 import { TestResponse } from '#core/testing/test-response.type';
 import { EventStoreDBClient } from '@eventstore/db-client';
 import { Application } from 'express';
@@ -10,7 +10,7 @@ import { v4 as uuid } from 'uuid';
 import { getApplication } from '../../core/testing/api';
 import { mapShoppingCartStreamId, shoppingCartApi } from './api';
 
-describe('Application logic', () => {
+describe('Application logic (FUNC)', () => {
   let app: Application;
   let eventStoreDB: EventStoreDBClient;
 

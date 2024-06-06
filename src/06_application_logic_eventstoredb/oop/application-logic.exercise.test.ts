@@ -1,22 +1,37 @@
 import { ShoppingCartErrors } from '#core/cart/shopping-cart.errors';
 import { ShoppingCartEvent } from '#core/cart/shopping-cart.event.type';
+import { getEventStore } from '#core/shared/get-event-store.function';
 import { getApplication } from '#core/testing/api';
 import { getEventStoreDBTestClient } from '#core/testing/event-store-DB';
-import { getEventStore } from '#core/testing/event-store-DB/get-event-store.function';
 import { TestResponse } from '#core/testing/test-response.type';
 import { EventStoreDBClient } from '@eventstore/db-client';
 import { Application } from 'express';
 import request from 'supertest';
 import { v4 as uuid } from 'uuid';
+import { ShoppingCart } from '../../core/cart/oop/shopping-cart';
+import { ShoppingCartService } from '../../core/cart/oop/shopping-cart.service';
+import { EventStoreRepository } from '../../core/shared/repository';
 import { mapShoppingCartStreamId, shoppingCartApi } from './api';
 
-describe('Application logic', () => {
+describe('Application logic (OOP)', () => {
   let app: Application;
   let eventStoreDB: EventStoreDBClient;
 
   beforeAll(async () => {
     eventStoreDB = await getEventStoreDBTestClient();
-    app = getApplication(shoppingCartApi);
+
+    const repository = new EventStoreRepository<
+      ShoppingCart,
+      ShoppingCartEvent
+    >(
+      getEventStore(eventStoreDB),
+      () => ShoppingCart.from([]),
+      mapShoppingCartStreamId,
+    );
+
+    const service = new ShoppingCartService(repository);
+
+    app = getApplication(shoppingCartApi(service));
   });
 
   afterAll(() => eventStoreDB.dispose());

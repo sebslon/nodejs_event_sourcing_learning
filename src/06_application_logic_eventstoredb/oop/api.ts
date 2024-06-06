@@ -1,17 +1,13 @@
-import { AddProductItemRequest } from '#core/cart/api/add-product-item.request';
 import {
   PricedProductItem,
   ProductItem,
 } from '#core/cart/product-item.interface';
-import { ShoppingCartHandler } from '#core/cart/shopping-cart.handler';
-import { CommandHandler } from '#core/shared/command-handler';
-import { getEventStore } from '#core/shared/get-event-store.function';
 import { assertNotEmptyString } from '#core/shared/validation/assert-not-empty-string';
 import { assertPositiveNumber } from '#core/shared/validation/assert-positive-number';
 import { sendCreated } from '#core/testing/api';
-import { EventStoreDBClient } from '@eventstore/db-client';
 import { Request, Response, Router } from 'express';
 import { v4 as uuid } from 'uuid';
+import { ShoppingCartService } from '../../core/cart/oop/shopping-cart.service';
 
 export const mapShoppingCartStreamId = (id: string) => `shopping_cart-${id}`;
 
@@ -19,14 +15,8 @@ const dummyPrice = (_productId: string) => {
   return 100;
 };
 
-export const handle = CommandHandler(
-  ShoppingCartHandler,
-  mapShoppingCartStreamId,
-);
-
 export const shoppingCartApi =
-  (eventStoreDB: EventStoreDBClient) => (router: Router) => {
-    const eventStore = getEventStore(eventStoreDB);
+  (shoppingCartService: ShoppingCartService) => (router: Router) => {
     // Open Shopping cart
     router.post(
       '/clients/:clientId/shopping-carts/',
@@ -34,9 +24,13 @@ export const shoppingCartApi =
         const shoppingCartId = uuid();
         const clientId = assertNotEmptyString(request.params.clientId);
 
-        await handle(eventStore, shoppingCartId, {
+        await shoppingCartService.open({
           type: 'OpenShoppingCart',
-          data: { clientId, shoppingCartId, now: new Date() },
+          data: {
+            shoppingCartId,
+            clientId,
+            now: new Date(),
+          },
         });
 
         sendCreated(response, shoppingCartId);
@@ -53,11 +47,16 @@ export const shoppingCartApi =
           productId: assertNotEmptyString(request.body.productId),
           quantity: assertPositiveNumber(request.body.quantity),
         };
-        const unitPrice = dummyPrice(productItem.productId);
 
-        await handle(eventStore, shoppingCartId, {
+        await shoppingCartService.addProductItem({
           type: 'AddProductItemToShoppingCart',
-          data: { shoppingCartId, productItem: { ...productItem, unitPrice } },
+          data: {
+            shoppingCartId,
+            productItem: {
+              ...productItem,
+              unitPrice: dummyPrice(productItem.productId),
+            },
+          },
         });
 
         response.sendStatus(204);
@@ -77,7 +76,7 @@ export const shoppingCartApi =
           unitPrice: assertPositiveNumber(Number(request.query.unitPrice)),
         };
 
-        await handle(eventStore, shoppingCartId, {
+        await shoppingCartService.removeProductItem({
           type: 'RemoveProductItemFromShoppingCart',
           data: { shoppingCartId, productItem },
         });
@@ -94,7 +93,7 @@ export const shoppingCartApi =
           request.params.shoppingCartId,
         );
 
-        await handle(eventStore, shoppingCartId, {
+        await shoppingCartService.confirm({
           type: 'ConfirmShoppingCart',
           data: { shoppingCartId, now: new Date() },
         });
@@ -111,7 +110,7 @@ export const shoppingCartApi =
           request.params.shoppingCartId,
         );
 
-        await handle(eventStore, shoppingCartId, {
+        await shoppingCartService.cancel({
           type: 'CancelShoppingCart',
           data: { shoppingCartId, now: new Date() },
         });
@@ -120,3 +119,10 @@ export const shoppingCartApi =
       },
     );
   };
+
+// Add Product Item
+type AddProductItemRequest = Request<
+  Partial<{ shoppingCartId: string }>,
+  unknown,
+  Partial<{ productId: number; quantity: number }>
+>;

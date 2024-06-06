@@ -5,15 +5,16 @@ import { getEventStoreDBTestClient } from '#core/testing/event-store-DB';
 import { EventStoreDBClient } from '@eventstore/db-client';
 import { v4 as uuid } from 'uuid';
 import { appendToStream } from '../../core/cart/functions/append-to-stream';
-import { EventStoreDBRepository } from '../../core/cart/oop/event-store-db.repository';
 import { ShoppingCart } from '../../core/cart/oop/shopping-cart';
 import { ShoppingCartService } from '../../core/cart/oop/shopping-cart.service';
+import { getEventStore } from '../../core/shared/get-event-store.function';
+import { EventStoreRepository } from '../../core/shared/repository';
 
 describe('[OOP] - Getting state from events', () => {
-  let eventStore: EventStoreDBClient;
+  let client: EventStoreDBClient;
 
   beforeAll(async () => {
-    eventStore = await getEventStoreDBTestClient();
+    client = await getEventStoreDBTestClient();
   });
 
   it('should read events from stream and apply them creating a cart', async () => {
@@ -89,10 +90,13 @@ describe('[OOP] - Getting state from events', () => {
 
     const streamName = `shopping_cart-${shoppingCartId}`;
 
-    await appendToStream(eventStore, streamName, events);
+    await appendToStream(client, streamName, events);
 
-    const repository = new EventStoreDBRepository(
-      eventStore,
+    const repository = new EventStoreRepository<
+      ShoppingCart,
+      ShoppingCartEvent
+    >(
+      getEventStore(client),
       () => ShoppingCart.from([]),
       ShoppingCart.getStreamId,
     );
