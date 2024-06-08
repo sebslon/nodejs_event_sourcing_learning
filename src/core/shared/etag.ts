@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-//import { assertUnsignedBigInt } from './validation';
+import { assertUnsignedBigInt } from './validation/assert-unsigned-bigint';
 
 export const enum HeaderNames {
   IF_MATCH = 'if-match',
@@ -24,9 +24,11 @@ export const isWeakETag = (etag: ETag): etag is WeakETag => {
 
 export const getWeakETagValue = (etag: ETag): string => {
   const result = WeakETagRegex.exec(etag);
+
   if (result === null || result.length === 0) {
     throw new Error(ETagErrors.WRONG_WEAK_ETAG_FORMAT);
   }
+
   return result[1];
 };
 
@@ -58,16 +60,16 @@ export const setETag = (response: Response, etag: ETag): void => {
   response.setHeader(HeaderNames.ETag, etag);
 };
 
-// export const getExpectedRevision = (request: Request): bigint => {
-//   const eTag = getETagFromIfMatch(request);
-//   const weakEtag = getWeakETagValue(eTag);
+export const getExpectedRevision = (request: Request): bigint => {
+  const eTag = getETagFromIfMatch(request);
+  const weakEtag = getWeakETagValue(eTag);
 
-//   return assertUnsignedBigInt(weakEtag);
-// };
+  return assertUnsignedBigInt(weakEtag);
+};
 
-// export const setNextExpectedRevision = (response: Response, nextEspectedRevision): void => {
-//   const eTag = getETagFromIfMatch(response);
-//   const weakEtag = getWeakETagValue(eTag);
-
-//   return assertUnsignedBigInt(weakEtag);
-// };
+export const setNextExpectedRevision = (
+  response: Response,
+  nextExpectedRevision: bigint,
+): void => {
+  response.set(HeaderNames.ETag, toWeakETag(nextExpectedRevision));
+};

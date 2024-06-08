@@ -1,22 +1,22 @@
 import { ShoppingCartErrors } from '#core/cart/shopping-cart.errors';
 import { ShoppingCartEvent } from '#core/cart/shopping-cart.event.type';
-import { getEventStoreDBTestClient } from '#core/testing/event-store-DB';
-import { EventStoreDBClient } from '@eventstore/db-client';
-import { Application } from 'express';
-import request from 'supertest';
-import { v4 as uuid } from 'uuid';
-import { getApplication } from '../../tools/api';
-import { HeaderNames, toWeakETag } from '../../tools/etag';
-import { getEventStore } from '../../tools/eventStore';
+import { HeaderNames, toWeakETag } from '#core/shared/etag';
+import { getEventStore } from '#core/shared/get-event-store.function';
+import { getApplication } from '#core/testing/api';
 import {
   TestResponse,
   expectNextRevisionInResponseEtag,
   runTwice,
   statuses,
-} from '../../tools/testing';
+} from '#core/testing/concurrency-testing.helpers';
+import { getEventStoreDBTestClient } from '#core/testing/event-store-DB';
+import { EventStoreDBClient } from '@eventstore/db-client';
+import { Application } from 'express';
+import request from 'supertest';
+import { v4 as uuid } from 'uuid';
 import { mapShoppingCartStreamId, shoppingCartApi } from './api';
 
-describe('Application logic with optimistic concurrency', () => {
+describe('Application logic with optimistic concurrency (FUNC)', () => {
   let app: Application;
   let eventStoreDB: EventStoreDBClient;
 
@@ -39,13 +39,9 @@ describe('Application logic with optimistic concurrency', () => {
     let currentRevision = expectNextRevisionInResponseEtag(createResponse);
     const current = createResponse.body;
 
-    if (!current.id) {
-      expect(false).toBeTruthy();
-      return;
-    }
     expect(current.id).toBeDefined();
 
-    const shoppingCartId = current.id;
+    const shoppingCartId = current.id!;
 
     ///////////////////////////////////////////////////
     // 2. Add Two Pair of Shoes

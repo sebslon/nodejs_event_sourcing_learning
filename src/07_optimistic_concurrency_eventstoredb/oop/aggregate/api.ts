@@ -4,13 +4,15 @@ import {
 } from '#core/cart/product-item.interface';
 import { Request, Response, Router } from 'express';
 import { v4 as uuid } from 'uuid';
-import { sendCreated } from '../../tools/api';
-import { getETagFromIfMatch, getWeakETagValue } from '../../tools/etag';
 import {
-  assertNotEmptyString,
-  assertPositiveNumber,
-} from '../../tools/validation';
+  getETagFromIfMatch,
+  getWeakETagValue,
+} from '../../../core/shared/etag';
+
 import { ShoppingCartService } from './application-service';
+import { assertNotEmptyString } from '../../../core/shared/validation/assert-not-empty-string';
+import { assertPositiveNumber } from '../../../core/shared/validation/assert-positive-number';
+import { sendCreated } from '../../../core/testing/api';
 
 export const mapShoppingCartStreamId = (id: string) => `shopping_cart-${id}`;
 

@@ -19,20 +19,22 @@ export function CommandHandler<
     eventStore: EventStore,
     id: string,
     command: CommandType,
+    options?: { expectedRevision?: bigint },
   ) {
     const streamName = streamIdMapper(id);
 
     const state = await eventStore.aggregateStream(streamName, {
       evolve,
       getInitialState,
+      expectedRevision: options?.expectedRevision,
     });
 
     const result = handle(command, state ?? getInitialState());
 
-    if (Array.isArray(result)) {
-      return eventStore.appendToStream(streamName, ...result);
-    }
-
-    return eventStore.appendToStream(streamName, result);
+    return eventStore.appendToStream(
+      streamName,
+      Array.isArray(result) ? result : [result],
+      options,
+    );
   };
 }

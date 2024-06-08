@@ -1,6 +1,6 @@
 import { Response, Test } from 'supertest';
-import { getWeakETagValue } from './etag';
-import { assertUnsignedBigInt } from './validation';
+import { getWeakETagValue } from '../shared/etag';
+import { assertUnsignedBigInt } from '../shared/validation/assert-unsigned-bigint';
 
 export type TestResponse<RequestBody> = Omit<
   Omit<Response, 'body'>,

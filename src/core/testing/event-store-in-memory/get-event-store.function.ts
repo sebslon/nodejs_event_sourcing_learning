@@ -10,7 +10,7 @@ export const getInMemoryEventStore = (): EventStore<true> => {
     },
     appendToStream: <E extends Event>(
       streamId: string,
-      ...events: E[]
+      events: E[],
     ): bigint => {
       const currentEvents = streams.get(streamId) ?? [];
       streams.set(streamId, [...currentEvents, ...events]);

@@ -5,19 +5,19 @@ import { EventStoreDBClient } from '@eventstore/db-client';
 import { Application } from 'express';
 import request from 'supertest';
 import { v4 as uuid } from 'uuid';
-import { getApplication } from '../../tools/api';
-import { HeaderNames, toWeakETag } from '../../tools/etag';
-import { getEventStore } from '../../tools/eventStore';
+import { HeaderNames, toWeakETag } from '../../../core/shared/etag';
 import {
   TestResponse,
   expectNextRevisionInResponseEtag,
   runTwice,
   statuses,
-} from '../../tools/testing';
+} from '../../../core/testing/concurrency-testing.helpers';
 import { mapShoppingCartStreamId, shoppingCartApi } from './api';
 import { ShoppingCartService } from './application-service';
 import { EventStoreRepository } from './core/repository';
 import { ShoppingCart } from './shopping-cart';
+import { getEventStore } from '../../../core/shared/get-event-store.function';
+import { getApplication } from '../../../core/testing/api';
 
 describe('Application logic with optimistic concurrency', () => {
   let app: Application;
