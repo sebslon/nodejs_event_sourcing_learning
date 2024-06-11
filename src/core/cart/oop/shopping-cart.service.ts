@@ -16,31 +16,52 @@ export class ShoppingCartService extends ApplicationService<ShoppingCart> {
     return this.repository.find(id);
   }
 
-  public open({ data: { shoppingCartId, clientId, now } }: OpenShoppingCart) {
-    return this.on(shoppingCartId, () =>
-      ShoppingCart.open(shoppingCartId, clientId, now),
+  public open(
+    { data: { shoppingCartId, clientId, now } }: OpenShoppingCart,
+    options?: { expectedRevision?: bigint },
+  ) {
+    return this.on(
+      shoppingCartId,
+      () => ShoppingCart.open(shoppingCartId, clientId, now),
+      options,
     );
   }
 
-  public addProductItem({
-    data: { shoppingCartId, productItem },
-  }: AddProductItemToShoppingCart) {
-    return this.on(shoppingCartId, (cart) => cart.addProductItem(productItem));
-  }
-
-  public removeProductItem({
-    data: { shoppingCartId, productItem },
-  }: RemoveProductItemFromShoppingCart) {
-    return this.on(shoppingCartId, (cart) =>
-      cart.removeProductItem(productItem),
+  public addProductItem(
+    { data: { shoppingCartId, productItem } }: AddProductItemToShoppingCart,
+    options?: { expectedRevision?: bigint },
+  ) {
+    return this.on(
+      shoppingCartId,
+      (cart) => cart.addProductItem(productItem),
+      options,
     );
   }
 
-  public confirm({ data: { shoppingCartId, now } }: ConfirmShoppingCart) {
-    return this.on(shoppingCartId, (cart) => cart.confirm(now));
+  public removeProductItem(
+    {
+      data: { shoppingCartId, productItem },
+    }: RemoveProductItemFromShoppingCart,
+    options?: { expectedRevision?: bigint },
+  ) {
+    return this.on(
+      shoppingCartId,
+      (cart) => cart.removeProductItem(productItem),
+      options,
+    );
   }
 
-  public cancel({ data: { shoppingCartId, now } }: CancelShoppingCart) {
-    return this.on(shoppingCartId, (cart) => cart.cancel(now));
+  public confirm(
+    { data: { shoppingCartId, now } }: ConfirmShoppingCart,
+    options?: { expectedRevision?: bigint },
+  ) {
+    return this.on(shoppingCartId, (cart) => cart.confirm(now), options);
+  }
+
+  public cancel(
+    { data: { shoppingCartId, now } }: CancelShoppingCart,
+    options?: { expectedRevision?: bigint },
+  ) {
+    return this.on(shoppingCartId, (cart) => cart.cancel(now), options);
   }
 }

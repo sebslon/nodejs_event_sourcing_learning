@@ -3,8 +3,12 @@ import { EventStore } from './event-store.interface';
 import { Event } from './event.type';
 
 export interface Repository<Entity> {
-  find(id: string): Promise<Entity>;
-  store(id: string, entity: Entity): Promise<void>;
+  find(id: string, options?: { expectedRevision?: bigint }): Promise<Entity>;
+  store(
+    id: string,
+    entity: Entity,
+    options?: { expectedRevision?: bigint },
+  ): Promise<bigint>;
 }
 
 export class EventStoreRepository<
@@ -18,7 +22,10 @@ export class EventStoreRepository<
     private streamIdMapper: (id: string) => string,
   ) {}
 
-  public async find(id: string): Promise<Entity> {
+  public async find(
+    id: string,
+    options?: { expectedRevision?: bigint },
+  ): Promise<Entity> {
     return (
       (await this.eventStore.aggregateStream<Entity, StreamEvent>(
         this.streamIdMapper(id),
@@ -28,18 +35,31 @@ export class EventStoreRepository<
             return state;
           },
           getInitialState: this.getInitialState,
+          expectedRevision: options?.expectedRevision,
         },
       )) ?? this.getInitialState()
     );
   }
 
-  public async store(id: string, entity: Entity): Promise<void> {
+  public async store(
+    id: string,
+    entity: Entity,
+    options?: { expectedRevision?: bigint },
+  ): Promise<bigint> {
     const events = entity.dispatchUncommittedEvents();
 
     if (events.length === 0) {
-      return;
+      return Promise.resolve(
+        options?.expectedRevision !== undefined
+          ? options?.expectedRevision
+          : -1n,
+      );
     }
 
-    await this.eventStore.appendToStream(this.streamIdMapper(id), ...events);
+    return await this.eventStore.appendToStream(
+      this.streamIdMapper(id),
+      events,
+      options,
+    );
   }
 }

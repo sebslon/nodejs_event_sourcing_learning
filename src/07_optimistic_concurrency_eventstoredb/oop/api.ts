@@ -1,36 +1,27 @@
-import { AddProductItemRequest } from '#core/cart/api/add-product-item.request';
+import { ShoppingCartService } from '#core/cart/oop/shopping-cart.service';
 import {
   PricedProductItem,
   ProductItem,
 } from '#core/cart/product-item.interface';
-import { ShoppingCartHandler } from '#core/cart/shopping-cart.handler';
-import { CommandHandler } from '#core/shared/command-handler';
 import {
   getExpectedRevision,
   setNextExpectedRevision,
 } from '#core/shared/etag';
-import { getEventStore } from '#core/shared/get-event-store.function';
 import { assertNotEmptyString } from '#core/shared/validation/assert-not-empty-string';
 import { assertPositiveNumber } from '#core/shared/validation/assert-positive-number';
 import { sendCreated } from '#core/testing/api';
-import { EventStoreDBClient } from '@eventstore/db-client';
 import { createHash } from 'crypto';
 import { Request, Response, Router } from 'express';
+import { AddProductItemRequest } from '../../core/cart/api/add-product-item.request';
 
 export const mapShoppingCartStreamId = (id: string) => `shopping_cart-${id}`;
-
-export const handle = CommandHandler(
-  ShoppingCartHandler,
-  mapShoppingCartStreamId,
-);
 
 const dummyPriceProvider = (_productId: string) => {
   return 100;
 };
 
 export const shoppingCartApi =
-  (eventStoreDB: EventStoreDBClient) => (router: Router) => {
-    const eventStore = getEventStore(eventStoreDB);
+  (shoppingCartService: ShoppingCartService) => (router: Router) => {
     // Open Shopping cart
     router.post(
       '/clients/:clientId/shopping-carts/',
@@ -40,17 +31,17 @@ export const shoppingCartApi =
           .update(clientId)
           .digest('hex');
 
-        const nextExpectedRevision = await handle(
-          eventStore,
-          shoppingCartId,
+        const nextExpectedRevision = await shoppingCartService.open(
           {
             type: 'OpenShoppingCart',
-            data: { clientId, shoppingCartId, now: new Date() },
+            data: {
+              shoppingCartId,
+              clientId,
+              now: new Date(),
+            },
           },
           { expectedRevision: -1n },
         );
-
-        console.log(nextExpectedRevision);
 
         setNextExpectedRevision(response, nextExpectedRevision);
         sendCreated(response, shoppingCartId);
@@ -70,19 +61,18 @@ export const shoppingCartApi =
         };
         const unitPrice = dummyPriceProvider(productItem.productId);
 
-        const nextExpectedRevision = await handle(
-          eventStore,
-          shoppingCartId,
+        const nextExpectedRevision = await shoppingCartService.addProductItem(
           {
             type: 'AddProductItemToShoppingCart',
             data: {
               shoppingCartId,
-              productItem: { ...productItem, unitPrice },
+              productItem: {
+                ...productItem,
+                unitPrice,
+              },
             },
           },
-          {
-            expectedRevision: getExpectedRevision(request),
-          },
+          { expectedRevision: getExpectedRevision(request) },
         );
 
         setNextExpectedRevision(response, nextExpectedRevision);
@@ -103,15 +93,17 @@ export const shoppingCartApi =
           unitPrice: assertPositiveNumber(Number(request.query.unitPrice)),
         };
 
-        const nextExpectedRevision = await handle(
-          eventStore,
-          shoppingCartId,
-          {
-            type: 'RemoveProductItemFromShoppingCart',
-            data: { shoppingCartId, productItem },
-          },
-          { expectedRevision: getExpectedRevision(request) },
-        );
+        const nextExpectedRevision =
+          await shoppingCartService.removeProductItem(
+            {
+              type: 'RemoveProductItemFromShoppingCart',
+              data: {
+                shoppingCartId,
+                productItem,
+              },
+            },
+            { expectedRevision: getExpectedRevision(request) },
+          );
 
         setNextExpectedRevision(response, nextExpectedRevision);
         response.sendStatus(204);
@@ -126,9 +118,7 @@ export const shoppingCartApi =
           request.params.shoppingCartId,
         );
 
-        const nextExpectedRevision = await handle(
-          eventStore,
-          shoppingCartId,
+        const nextExpectedRevision = await shoppingCartService.confirm(
           {
             type: 'ConfirmShoppingCart',
             data: { shoppingCartId, now: new Date() },
@@ -149,9 +139,7 @@ export const shoppingCartApi =
           request.params.shoppingCartId,
         );
 
-        const nextExpectedRevision = await handle(
-          eventStore,
-          shoppingCartId,
+        const nextExpectedRevision = await shoppingCartService.cancel(
           {
             type: 'CancelShoppingCart',
             data: { shoppingCartId, now: new Date() },
