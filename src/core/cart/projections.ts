@@ -1,23 +1,25 @@
-import { ShoppingCartDetails } from '#core/cart/shopping-cart-details.type';
-import { ShoppingCartStatus } from '#core/cart/shopping-cart-status.enum';
-import { ShoppingCartEvent } from '#core/cart/shopping-cart.event.type';
-import { ShoppingCartShortInfo } from '#core/cart/shopping-cart.type';
-import { DocumentsCollection } from './tools/database';
-import { EventHandler } from './tools/eventStore';
+import { DocumentsCollection } from '../shared/database';
+import { EventHandler } from '../shared/event.type';
+import {
+  ShoppingCartDetails,
+  ShoppingCartShortInfo,
+} from './shopping-cart-details.type';
+import { ShoppingCartStatus } from './shopping-cart-status.enum';
+import { ShoppingCartEvent } from './shopping-cart.event.type';
 
-export const getAndStore = <T>(
+export function getAndStore<T>(
   collection: DocumentsCollection<T>,
   id: string,
   update: (document: T) => T,
-) => {
+) {
   const document = collection.get(id) ?? ({} as T);
 
   collection.store(id, update(document));
-};
+}
 
-export const ShoppingCartDetailsProjection = (
+export function ShoppingCartDetailsProjection(
   collection: DocumentsCollection<ShoppingCartDetails>,
-): EventHandler<ShoppingCartEvent> => {
+): EventHandler<ShoppingCartEvent> {
   return ({ type, data: event }) => {
     switch (type) {
       case 'ShoppingCartOpened': {
@@ -26,22 +28,24 @@ export const ShoppingCartDetailsProjection = (
           status: ShoppingCartStatus.Pending,
           clientId: event.clientId,
           productItems: [],
-          openedAt: event.openedAt.toISOString(),
+          openedAt: event.openedAt,
           totalAmount: 0,
           totalItemsCount: 0,
         });
+
         return;
       }
+
       case 'ProductItemAddedToShoppingCart': {
         getAndStore(collection, event.shoppingCartId, (document) => {
           const { productItem } = event;
           const existingProductItem = document.productItems.find(
-            (p) =>
-              p.productId === productItem.productId &&
-              p.unitPrice === productItem.unitPrice,
+            (item) =>
+              item.productId === productItem.productId &&
+              item.unitPrice === productItem.unitPrice,
           );
 
-          if (existingProductItem == null) {
+          if (!existingProductItem) {
             document.productItems.push({ ...productItem });
           } else {
             document.productItems[
@@ -49,24 +53,25 @@ export const ShoppingCartDetailsProjection = (
             ].quantity += productItem.quantity;
           }
 
-          document.totalAmount += productItem.quantity * productItem.unitPrice;
+          document.totalAmount += productItem.unitPrice * productItem.quantity;
           document.totalItemsCount += productItem.quantity;
 
           return document;
         });
+
         return;
       }
+
       case 'ProductItemRemovedFromShoppingCart': {
         getAndStore(collection, event.shoppingCartId, (document) => {
           const { productItem } = event;
           const existingProductItem = document.productItems.find(
-            (p) =>
-              p.productId === productItem.productId &&
-              p.unitPrice === productItem.unitPrice,
+            (item) =>
+              item.productId === productItem.productId &&
+              item.unitPrice === productItem.unitPrice,
           );
 
           if (existingProductItem == null) {
-            // You may consider throwing exception here, depending on your strategy
             return document;
           }
 
@@ -84,36 +89,42 @@ export const ShoppingCartDetailsProjection = (
 
           return document;
         });
+
         return;
       }
+
       case 'ShoppingCartConfirmed': {
         getAndStore(collection, event.shoppingCartId, (document) => {
           document.status = ShoppingCartStatus.Confirmed;
-          document.confirmedAt = event.confirmedAt.toISOString();
+          document.confirmedAt = event.confirmedAt;
 
           return document;
         });
+
         return;
       }
+
       case 'ShoppingCartCancelled': {
         getAndStore(collection, event.shoppingCartId, (document) => {
           document.status = ShoppingCartStatus.Cancelled;
-          document.cancelledAt = event.cancelledAt.toISOString();
+          document.cancelledAt = event.cancelledAt;
 
           return document;
         });
+
         return;
       }
+
       default: {
         return;
       }
     }
   };
-};
+}
 
-export const ShoppingCartShortInfoProjection = (
+export function ShoppingCartShortInfoProjection(
   collection: DocumentsCollection<ShoppingCartShortInfo>,
-): EventHandler<ShoppingCartEvent> => {
+): EventHandler<ShoppingCartEvent> {
   return ({ type, data: event }) => {
     switch (type) {
       case 'ShoppingCartOpened': {
@@ -123,6 +134,7 @@ export const ShoppingCartShortInfoProjection = (
           totalAmount: 0,
           totalItemsCount: 0,
         });
+
         return;
       }
       case 'ProductItemAddedToShoppingCart': {
@@ -134,8 +146,10 @@ export const ShoppingCartShortInfoProjection = (
 
           return document;
         });
+
         return;
       }
+
       case 'ProductItemRemovedFromShoppingCart': {
         getAndStore(collection, event.shoppingCartId, (document) => {
           const { productItem } = event;
@@ -145,16 +159,19 @@ export const ShoppingCartShortInfoProjection = (
 
           return document;
         });
+
         return;
       }
+
       case 'ShoppingCartConfirmed': {
         collection.delete(event.shoppingCartId);
         return;
       }
+
       case 'ShoppingCartCancelled': {
         collection.delete(event.shoppingCartId);
         return;
       }
     }
   };
-};
+}

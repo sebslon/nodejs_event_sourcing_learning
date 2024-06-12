@@ -7,7 +7,7 @@ import {
   jsonEvent,
 } from '@eventstore/db-client';
 import { WrongExpectedVersion } from '@eventstore/db-client/generated/shared_pb';
-import { Event } from './event.type';
+import { Event, EventEnvelope } from './event.type';
 
 export const getEventStore = (eventStore: EventStoreDBClient): EventStore => {
   return {
@@ -101,6 +101,15 @@ export const getEventStore = (eventStore: EventStoreDBClient): EventStore => {
         }
 
         throw error;
+      }
+    },
+    subscribe: async <E extends Event>(
+      eventHandler: (eventEnvelope: EventEnvelope<E>) => void,
+    ): Promise<void> => {
+      for await (const { event } of eventStore.subscribeToAll()) {
+        if (!event) continue;
+
+        eventHandler(event.data as EventEnvelope<E>);
       }
     },
   };

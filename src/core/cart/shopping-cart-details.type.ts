@@ -6,9 +6,16 @@ export type ShoppingCartDetails = {
   clientId: string;
   status: ShoppingCartStatus;
   productItems: PricedProductItem[];
-  openedAt: string;
-  confirmedAt?: string;
-  cancelledAt?: string;
+  openedAt: Date;
+  confirmedAt?: Date;
+  cancelledAt?: Date;
+  totalAmount: number;
+  totalItemsCount: number;
+};
+
+export type ShoppingCartShortInfo = {
+  id: string;
+  clientId: string;
   totalAmount: number;
   totalItemsCount: number;
 };

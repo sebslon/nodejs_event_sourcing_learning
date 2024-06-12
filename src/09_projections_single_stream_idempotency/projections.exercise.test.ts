@@ -1,13 +1,13 @@
 import { PricedProductItem } from '#core/cart/product-item.interface';
+import {
+  ShoppingCartDetailsProjection,
+  ShoppingCartShortInfoProjection,
+} from '#core/cart/projections';
 import { ShoppingCartDetails } from '#core/cart/shopping-cart-details.type';
 import { ShoppingCartStatus } from '#core/cart/shopping-cart-status.enum';
 import { ShoppingCartEvent } from '#core/cart/shopping-cart.event.type';
 import { ShoppingCartShortInfo } from '#core/cart/shopping-cart.type';
 import { v4 as uuid } from 'uuid';
-import {
-  ShoppingCartDetailsProjection,
-  ShoppingCartShortInfoProjection,
-} from './projections';
 import { getDatabase } from './tools/database';
 import { getEventStore } from './tools/eventStore';
 

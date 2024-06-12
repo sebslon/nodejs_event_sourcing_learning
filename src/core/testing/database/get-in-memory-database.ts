@@ -1,14 +1,6 @@
-export interface DocumentsCollection<T> {
-  store: (id: string, obj: T) => void;
-  delete: (id: string) => void;
-  get: (id: string) => T | null;
-}
+import { Database, DocumentsCollection } from '../../shared/database';
 
-export interface Database {
-  collection: <T>(name: string) => DocumentsCollection<T>;
-}
-
-export const getDatabase = (): Database => {
+export const getInMemoryDb = (): Database => {
   const storage = new Map<string, unknown>();
 
   return {
@@ -25,10 +17,7 @@ export const getDatabase = (): Database => {
         get: (id: string): T | null => {
           const result = storage.get(toFullId(id));
 
-          return result
-            ? // Clone to simulate getting new instance on loading
-              (JSON.parse(JSON.stringify(result)) as T)
-            : null;
+          return result ? (result as T) : null;
         },
       };
     },

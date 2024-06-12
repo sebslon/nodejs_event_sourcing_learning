@@ -1,8 +1,16 @@
+import { v4 as uuid } from 'uuid';
 import { EventStore } from '../../shared/event-store.interface';
-import { Event } from '../../shared/event.type';
+import { Event, EventEnvelope, EventHandler } from '../../shared/event.type';
 
 export const getInMemoryEventStore = (): EventStore<true> => {
-  const streams = new Map<string, Event[]>();
+  const streams = new Map<string, EventEnvelope[]>();
+  const handlers: EventHandler[] = [];
+
+  const getAllEventsCount = () => {
+    return Array.from<EventEnvelope[]>(streams.values())
+      .map((s) => s.length)
+      .reduce((p, c) => p + c, 0);
+  };
 
   return {
     readStream: <E extends Event>(streamName: string): E[] => {
@@ -12,10 +20,28 @@ export const getInMemoryEventStore = (): EventStore<true> => {
       streamId: string,
       events: E[],
     ): bigint => {
-      const currentEvents = streams.get(streamId) ?? [];
-      streams.set(streamId, [...currentEvents, ...events]);
+      const current = streams.get(streamId) ?? [];
 
-      return BigInt(currentEvents.length + events.length);
+      const eventEnvelopes: EventEnvelope[] = events.map((event, index) => {
+        return {
+          ...event,
+          metadata: {
+            eventId: uuid(),
+            streamPosition: current.length + index + 1,
+            logPosition: BigInt(getAllEventsCount() + index + 1),
+          },
+        };
+      });
+
+      streams.set(streamId, [...current, ...eventEnvelopes]);
+
+      for (const eventEnvelope of eventEnvelopes) {
+        for (const handler of handlers) {
+          handler(eventEnvelope);
+        }
+      }
+
+      return BigInt(current.length + events.length);
     },
     aggregateStream: <Entity, E extends Event>(
       streamName: string,
@@ -32,6 +58,11 @@ export const getInMemoryEventStore = (): EventStore<true> => {
       }
 
       return state;
+    },
+    subscribe: <E extends Event>(eventHandler: EventHandler<E>): void => {
+      handlers.push((eventEnvelope) =>
+        eventHandler(eventEnvelope as EventEnvelope<E>),
+      );
     },
   };
 };

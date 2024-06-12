@@ -1,13 +1,17 @@
 import { PricedProductItem } from '#core/cart/product-item.interface';
+import {
+  ShoppingCartDetailsProjection,
+  ShoppingCartShortInfoProjection,
+} from '#core/cart/projections';
 import { ShoppingCartDetails } from '#core/cart/shopping-cart-details.type';
 import { ShoppingCartStatus } from '#core/cart/shopping-cart-status.enum';
 import { ShoppingCartEvent } from '#core/cart/shopping-cart.event.type';
 import { ShoppingCartShortInfo } from '#core/cart/shopping-cart.type';
+import { getInMemoryDb } from '#core/testing/database/get-in-memory-database';
+import { getInMemoryEventStore } from '#core/testing/event-store-in-memory';
 import { v4 as uuid } from 'uuid';
-import { getDatabase } from './tools/database';
-import { getEventStore } from './tools/event-store';
 
-describe('Getting state from events', () => {
+describe('Getting final state (projection) from events', () => {
   it('Should return the state from the sequence of events', () => {
     const openedAt = new Date();
     const confirmedAt = new Date();
@@ -56,21 +60,28 @@ describe('Getting state from events', () => {
     const clientId = uuid();
     const otherClientId = uuid();
 
-    const eventStore = getEventStore();
-    const database = getDatabase();
+    const eventStore = getInMemoryEventStore();
+    const database = getInMemoryDb();
 
     const shoppingCarts =
       database.collection<ShoppingCartDetails>('shoppingCarts');
     const shoppingCartInfos =
       database.collection<ShoppingCartShortInfo>('shoppingCartInfos');
 
-    // TODO:
-    // 1. Register here your event handlers using `eventStore.subscribe`.
-    // 2. Store results in database.
+    // PROJECTIONS REGISTRATION
+    const shoppingCartDetailsProjection =
+      ShoppingCartDetailsProjection(shoppingCarts);
+
+    eventStore.subscribe(shoppingCartDetailsProjection);
+
+    const shoppingCartShortInfoProjection =
+      ShoppingCartShortInfoProjection(shoppingCartInfos);
+
+    eventStore.subscribe(shoppingCartShortInfoProjection);
+    // PROJECTIONS REGISTRATION
 
     // first confirmed
-    eventStore.appendToStream<ShoppingCartEvent>(
-      shoppingCartId,
+    eventStore.appendToStream<ShoppingCartEvent>(shoppingCartId, [
       {
         type: 'ShoppingCartOpened',
         data: {
@@ -107,11 +118,10 @@ describe('Getting state from events', () => {
           confirmedAt,
         },
       },
-    );
+    ]);
 
     // cancelled
-    eventStore.appendToStream<ShoppingCartEvent>(
-      cancelledShoppingCartId,
+    eventStore.appendToStream<ShoppingCartEvent>(cancelledShoppingCartId, [
       {
         type: 'ShoppingCartOpened',
         data: {
@@ -134,11 +144,10 @@ describe('Getting state from events', () => {
           cancelledAt: cancelledAt,
         },
       },
-    );
+    ]);
 
     // confirmed but other client
-    eventStore.appendToStream<ShoppingCartEvent>(
-      otherClientShoppingCartId,
+    eventStore.appendToStream<ShoppingCartEvent>(otherClientShoppingCartId, [
       {
         type: 'ShoppingCartOpened',
         data: {
@@ -161,11 +170,10 @@ describe('Getting state from events', () => {
           confirmedAt,
         },
       },
-    );
+    ]);
 
     // second confirmed
-    eventStore.appendToStream<ShoppingCartEvent>(
-      otherConfirmedShoppingCartId,
+    eventStore.appendToStream<ShoppingCartEvent>(otherConfirmedShoppingCartId, [
       {
         type: 'ShoppingCartOpened',
         data: {
@@ -188,17 +196,19 @@ describe('Getting state from events', () => {
           confirmedAt,
         },
       },
-    );
+    ]);
 
     // first pending
-    eventStore.appendToStream<ShoppingCartEvent>(otherPendingShoppingCartId, {
-      type: 'ShoppingCartOpened',
-      data: {
-        shoppingCartId: otherPendingShoppingCartId,
-        clientId,
-        openedAt,
+    eventStore.appendToStream<ShoppingCartEvent>(otherPendingShoppingCartId, [
+      {
+        type: 'ShoppingCartOpened',
+        data: {
+          shoppingCartId: otherPendingShoppingCartId,
+          clientId,
+          openedAt,
+        },
       },
-    });
+    ]);
 
     // first confirmed
     let shoppingCart = shoppingCarts.get(shoppingCartId);
@@ -268,6 +278,7 @@ describe('Getting state from events', () => {
 
     // first pending
     shoppingCart = shoppingCarts.get(otherPendingShoppingCartId);
+
     expect(shoppingCart).toEqual({
       id: otherPendingShoppingCartId,
       clientId,
