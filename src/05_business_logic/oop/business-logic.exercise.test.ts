@@ -57,7 +57,7 @@ describe('Business logic (OOP)', () => {
     );
     eventStore.appendToStream(
       shoppingCartId,
-      ...shoppingCart.dispatchUncommittedEvents(),
+      shoppingCart.dispatchUncommittedEvents(),
     );
 
     // Add Two Pair of Shoes
@@ -71,7 +71,7 @@ describe('Business logic (OOP)', () => {
 
     eventStore.appendToStream(
       shoppingCartId,
-      ...shoppingCart.dispatchUncommittedEvents(),
+      shoppingCart.dispatchUncommittedEvents(),
     );
 
     // Add T-Shirt
@@ -85,7 +85,7 @@ describe('Business logic (OOP)', () => {
 
     eventStore.appendToStream(
       shoppingCartId,
-      ...shoppingCart.dispatchUncommittedEvents(),
+      shoppingCart.dispatchUncommittedEvents(),
     );
 
     // Remove pair of shoes
@@ -99,7 +99,7 @@ describe('Business logic (OOP)', () => {
 
     eventStore.appendToStream(
       shoppingCartId,
-      ...shoppingCart.dispatchUncommittedEvents(),
+      shoppingCart.dispatchUncommittedEvents(),
     );
 
     // Confirm
@@ -113,7 +113,7 @@ describe('Business logic (OOP)', () => {
 
     eventStore.appendToStream(
       shoppingCartId,
-      ...shoppingCart.dispatchUncommittedEvents(),
+      shoppingCart.dispatchUncommittedEvents(),
     );
 
     const cancel: CancelShoppingCart = {
@@ -127,14 +127,19 @@ describe('Business logic (OOP)', () => {
 
       eventStore.appendToStream(
         shoppingCartId,
-        ...shoppingCart.dispatchUncommittedEvents(),
+        shoppingCart.dispatchUncommittedEvents(),
       );
     };
 
     expect(onCancel).toThrow(ShoppingCartErrors.CART_IS_ALREADY_CLOSED);
 
     const events = eventStore.readStream<ShoppingCartEvent>(shoppingCartId);
-    expect(events).toEqual([
+    expect(
+      events.map((e) => ({
+        type: e.type,
+        data: e.data,
+      })),
+    ).toEqual([
       {
         type: 'ShoppingCartOpened',
         data: {

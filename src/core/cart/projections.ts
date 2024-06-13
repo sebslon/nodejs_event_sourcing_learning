@@ -20,24 +20,30 @@ export function getAndStore<T>(
 export function ShoppingCartDetailsProjection(
   collection: DocumentsCollection<ShoppingCartDetails>,
 ): EventHandler<ShoppingCartEvent> {
-  return ({ type, data: event }) => {
+  return ({ type, data: event, metadata: { streamPosition } }) => {
     switch (type) {
       case 'ShoppingCartOpened': {
-        collection.store(event.shoppingCartId, {
-          id: event.shoppingCartId,
-          status: ShoppingCartStatus.Pending,
-          clientId: event.clientId,
-          productItems: [],
-          openedAt: event.openedAt,
-          totalAmount: 0,
-          totalItemsCount: 0,
-        });
+        getAndStore(collection, event.shoppingCartId, (document) => {
+          if (document.lastProcessedPosition >= streamPosition) return document;
 
+          return {
+            id: event.shoppingCartId,
+            status: ShoppingCartStatus.Pending,
+            clientId: event.clientId,
+            productItems: [],
+            openedAt: event.openedAt,
+            totalAmount: 0,
+            totalItemsCount: 0,
+            lastProcessedPosition: streamPosition,
+          };
+        });
         return;
       }
 
       case 'ProductItemAddedToShoppingCart': {
         getAndStore(collection, event.shoppingCartId, (document) => {
+          if (document.lastProcessedPosition >= streamPosition) return document;
+
           const { productItem } = event;
           const existingProductItem = document.productItems.find(
             (item) =>
@@ -56,6 +62,8 @@ export function ShoppingCartDetailsProjection(
           document.totalAmount += productItem.unitPrice * productItem.quantity;
           document.totalItemsCount += productItem.quantity;
 
+          document.lastProcessedPosition = streamPosition;
+
           return document;
         });
 
@@ -64,6 +72,8 @@ export function ShoppingCartDetailsProjection(
 
       case 'ProductItemRemovedFromShoppingCart': {
         getAndStore(collection, event.shoppingCartId, (document) => {
+          if (document.lastProcessedPosition >= streamPosition) return document;
+
           const { productItem } = event;
           const existingProductItem = document.productItems.find(
             (item) =>
@@ -87,6 +97,8 @@ export function ShoppingCartDetailsProjection(
           document.totalAmount -= productItem.quantity * productItem.unitPrice;
           document.totalItemsCount -= productItem.quantity;
 
+          document.lastProcessedPosition = streamPosition;
+
           return document;
         });
 
@@ -95,8 +107,12 @@ export function ShoppingCartDetailsProjection(
 
       case 'ShoppingCartConfirmed': {
         getAndStore(collection, event.shoppingCartId, (document) => {
+          if (document.lastProcessedPosition >= streamPosition) return document;
+
           document.status = ShoppingCartStatus.Confirmed;
           document.confirmedAt = event.confirmedAt;
+
+          document.lastProcessedPosition = streamPosition;
 
           return document;
         });
@@ -106,8 +122,12 @@ export function ShoppingCartDetailsProjection(
 
       case 'ShoppingCartCancelled': {
         getAndStore(collection, event.shoppingCartId, (document) => {
+          if (document.lastProcessedPosition >= streamPosition) return document;
+
           document.status = ShoppingCartStatus.Cancelled;
           document.cancelledAt = event.cancelledAt;
+
+          document.lastProcessedPosition = streamPosition;
 
           return document;
         });
@@ -125,24 +145,33 @@ export function ShoppingCartDetailsProjection(
 export function ShoppingCartShortInfoProjection(
   collection: DocumentsCollection<ShoppingCartShortInfo>,
 ): EventHandler<ShoppingCartEvent> {
-  return ({ type, data: event }) => {
+  return ({ type, data: event, metadata: { streamPosition } }) => {
     switch (type) {
       case 'ShoppingCartOpened': {
-        collection.store(event.shoppingCartId, {
-          id: event.shoppingCartId,
-          clientId: event.clientId,
-          totalAmount: 0,
-          totalItemsCount: 0,
+        getAndStore(collection, event.shoppingCartId, (document) => {
+          if (document.lastProcessedPosition >= streamPosition) return document;
+
+          return {
+            id: event.shoppingCartId,
+            clientId: event.clientId,
+            totalAmount: 0,
+            totalItemsCount: 0,
+            lastProcessedPosition: streamPosition,
+          };
         });
 
         return;
       }
       case 'ProductItemAddedToShoppingCart': {
         getAndStore(collection, event.shoppingCartId, (document) => {
+          if (document.lastProcessedPosition >= streamPosition) return document;
+
           const { productItem } = event;
 
           document.totalAmount += productItem.quantity * productItem.unitPrice;
           document.totalItemsCount += productItem.quantity;
+
+          document.lastProcessedPosition = streamPosition;
 
           return document;
         });
@@ -152,10 +181,14 @@ export function ShoppingCartShortInfoProjection(
 
       case 'ProductItemRemovedFromShoppingCart': {
         getAndStore(collection, event.shoppingCartId, (document) => {
+          if (document.lastProcessedPosition >= streamPosition) return document;
+
           const { productItem } = event;
 
           document.totalAmount -= productItem.quantity * productItem.unitPrice;
           document.totalItemsCount -= productItem.quantity;
+
+          document.lastProcessedPosition = streamPosition;
 
           return document;
         });

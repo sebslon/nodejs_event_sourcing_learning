@@ -20,3 +20,10 @@ Track and implement proper idempotency handling in projection event handlers. Ch
 Read more about projections in my article:
 
 - [Guide to Projections and Read Models in Event-Driven Architecture](https://event-driven.io/en/projections_and_read_models_in_event_driven_architecture/?utm_source=event_sourcing_nodejs&utm_campaign=workshop)
+- [A simple trick for idempotency handling in the Elastic Search read model](https://event-driven.io/en/simple_trick_for_idempotency_handling_in_elastic_search_readm_model/?utm_source=event_sourcing_nodejs&utm_campaign=workshop)
+
+# Solution
+
+- Implemented solution is inside the projection logic (using stream position)
+
+But could also be implemented in the database layer or doing some conditional updates.

@@ -3,16 +3,18 @@ import {
   ShoppingCartDetailsProjection,
   ShoppingCartShortInfoProjection,
 } from '#core/cart/projections';
-import { ShoppingCartDetails } from '#core/cart/shopping-cart-details.type';
+import {
+  ShoppingCartDetails,
+  ShoppingCartShortInfo,
+} from '#core/cart/shopping-cart-details.type';
 import { ShoppingCartStatus } from '#core/cart/shopping-cart-status.enum';
 import { ShoppingCartEvent } from '#core/cart/shopping-cart.event.type';
-import { ShoppingCartShortInfo } from '#core/cart/shopping-cart.type';
+import { getInMemoryDb } from '#core/testing/database/get-in-memory-database';
+import { getInMemoryEventStore } from '#core/testing/event-store-in-memory';
 import { v4 as uuid } from 'uuid';
-import { getDatabase } from './tools/database';
-import { getEventStore } from './tools/eventStore';
 
-describe('Getting state from events', () => {
-  it('Should return the state from the sequence of events', () => {
+describe('Getting final state (projection) from events', () => {
+  it('Should return the state from the sequence of events - should be idempotent', () => {
     const openedAt = new Date();
     const confirmedAt = new Date();
     const cancelledAt = new Date();
@@ -60,8 +62,8 @@ describe('Getting state from events', () => {
     const clientId = uuid();
     const otherClientId = uuid();
 
-    const eventStore = getEventStore();
-    const database = getDatabase();
+    const eventStore = getInMemoryEventStore();
+    const database = getInMemoryDb();
 
     const shoppingCarts =
       database.collection<ShoppingCartDetails>('shoppingCarts');
@@ -79,8 +81,7 @@ describe('Getting state from events', () => {
     eventStore.subscribe(shoppingCartShortInfoProjection);
 
     // first confirmed
-    eventStore.appendToStream<ShoppingCartEvent>(
-      shoppingCartId,
+    eventStore.appendToStream<ShoppingCartEvent>(shoppingCartId, [
       {
         type: 'ShoppingCartOpened',
         data: {
@@ -117,11 +118,10 @@ describe('Getting state from events', () => {
           confirmedAt,
         },
       },
-    );
+    ]);
 
     // cancelled
-    eventStore.appendToStream<ShoppingCartEvent>(
-      cancelledShoppingCartId,
+    eventStore.appendToStream<ShoppingCartEvent>(cancelledShoppingCartId, [
       {
         type: 'ShoppingCartOpened',
         data: {
@@ -144,11 +144,10 @@ describe('Getting state from events', () => {
           cancelledAt: cancelledAt,
         },
       },
-    );
+    ]);
 
     // confirmed but other client
-    eventStore.appendToStream<ShoppingCartEvent>(
-      otherClientShoppingCartId,
+    eventStore.appendToStream<ShoppingCartEvent>(otherClientShoppingCartId, [
       {
         type: 'ShoppingCartOpened',
         data: {
@@ -171,11 +170,10 @@ describe('Getting state from events', () => {
           confirmedAt,
         },
       },
-    );
+    ]);
 
     // second confirmed
-    eventStore.appendToStream<ShoppingCartEvent>(
-      otherConfirmedShoppingCartId,
+    eventStore.appendToStream<ShoppingCartEvent>(otherConfirmedShoppingCartId, [
       {
         type: 'ShoppingCartOpened',
         data: {
@@ -198,20 +196,25 @@ describe('Getting state from events', () => {
           confirmedAt,
         },
       },
-    );
+    ]);
 
     // first pending
-    eventStore.appendToStream<ShoppingCartEvent>(otherPendingShoppingCartId, {
-      type: 'ShoppingCartOpened',
-      data: {
-        shoppingCartId: otherPendingShoppingCartId,
-        clientId,
-        openedAt,
+    eventStore.appendToStream<ShoppingCartEvent>(otherPendingShoppingCartId, [
+      {
+        type: 'ShoppingCartOpened',
+        data: {
+          shoppingCartId: otherPendingShoppingCartId,
+          clientId,
+          openedAt,
+        },
       },
-    });
+    ]);
 
     // first confirmed
     let shoppingCart = shoppingCarts.get(shoppingCartId);
+    let shoppingCartShortInfo = shoppingCartInfos.get(shoppingCartId);
+
+    expect(shoppingCartShortInfo).toBeNull();
     expect(shoppingCart).toEqual({
       id: shoppingCartId,
       clientId,
@@ -223,13 +226,14 @@ describe('Getting state from events', () => {
         pairOfShoes.unitPrice * pairOfShoes.quantity +
         tShirt.unitPrice * tShirt.quantity,
       totalItemsCount: pairOfShoes.quantity + tShirt.quantity,
+      lastProcessedPosition: 5,
     });
-
-    let shoppingCartShortInfo = shoppingCartInfos.get(shoppingCartId);
-    expect(shoppingCartShortInfo).toBeNull();
 
     // cancelled
     shoppingCart = shoppingCarts.get(cancelledShoppingCartId);
+    shoppingCartShortInfo = shoppingCartInfos.get(cancelledShoppingCartId);
+
+    expect(shoppingCartShortInfo).toBeNull();
     expect(shoppingCart).toEqual({
       id: cancelledShoppingCartId,
       clientId,
@@ -239,13 +243,14 @@ describe('Getting state from events', () => {
       cancelledAt,
       totalAmount: dress.unitPrice * dress.quantity,
       totalItemsCount: dress.quantity,
+      lastProcessedPosition: 3,
     });
-
-    shoppingCartShortInfo = shoppingCartInfos.get(cancelledShoppingCartId);
-    expect(shoppingCartShortInfo).toBeNull();
 
     // confirmed but other client
     shoppingCart = shoppingCarts.get(otherClientShoppingCartId);
+    shoppingCartShortInfo = shoppingCartInfos.get(otherClientShoppingCartId);
+
+    expect(shoppingCartShortInfo).toBeNull();
     expect(shoppingCart).toEqual({
       id: otherClientShoppingCartId,
       clientId: otherClientId,
@@ -255,13 +260,14 @@ describe('Getting state from events', () => {
       confirmedAt,
       totalAmount: dress.unitPrice * dress.quantity,
       totalItemsCount: dress.quantity,
+      lastProcessedPosition: 3,
     });
-
-    shoppingCartShortInfo = shoppingCartInfos.get(otherClientShoppingCartId);
-    expect(shoppingCartShortInfo).toBeNull();
 
     // second confirmed
     shoppingCart = shoppingCarts.get(otherConfirmedShoppingCartId);
+    shoppingCartShortInfo = shoppingCartInfos.get(otherConfirmedShoppingCartId);
+
+    expect(shoppingCartShortInfo).toBeNull();
     expect(shoppingCart).toEqual({
       id: otherConfirmedShoppingCartId,
       clientId,
@@ -271,13 +277,13 @@ describe('Getting state from events', () => {
       confirmedAt,
       totalAmount: trousers.unitPrice * trousers.quantity,
       totalItemsCount: trousers.quantity,
+      lastProcessedPosition: 3,
     });
-
-    shoppingCartShortInfo = shoppingCartInfos.get(otherConfirmedShoppingCartId);
-    expect(shoppingCartShortInfo).toBeNull();
 
     // first pending
     shoppingCart = shoppingCarts.get(otherPendingShoppingCartId);
+    shoppingCartShortInfo = shoppingCartInfos.get(otherPendingShoppingCartId);
+
     expect(shoppingCart).toEqual({
       id: otherPendingShoppingCartId,
       clientId,
@@ -286,14 +292,14 @@ describe('Getting state from events', () => {
       openedAt,
       totalAmount: 0,
       totalItemsCount: 0,
+      lastProcessedPosition: 1,
     });
-
-    shoppingCartShortInfo = shoppingCartInfos.get(otherPendingShoppingCartId);
     expect(shoppingCartShortInfo).toStrictEqual({
       id: otherPendingShoppingCartId,
       clientId,
       totalAmount: 0,
       totalItemsCount: 0,
+      lastProcessedPosition: 1,
     });
   });
 });

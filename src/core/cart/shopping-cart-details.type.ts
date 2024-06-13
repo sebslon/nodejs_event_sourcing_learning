@@ -11,6 +11,7 @@ export type ShoppingCartDetails = {
   cancelledAt?: Date;
   totalAmount: number;
   totalItemsCount: number;
+  lastProcessedPosition: number; // idempotency
 };
 
 export type ShoppingCartShortInfo = {
@@ -18,4 +19,5 @@ export type ShoppingCartShortInfo = {
   clientId: string;
   totalAmount: number;
   totalItemsCount: number;
+  lastProcessedPosition: number;
 };
