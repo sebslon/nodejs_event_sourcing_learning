@@ -3,16 +3,18 @@ import {
   ShoppingCartDetailsProjection,
   ShoppingCartShortInfoProjection,
 } from '#core/cart/projections';
-import { ShoppingCartDetails } from '#core/cart/shopping-cart-details.type';
+import {
+  ShoppingCartDetails,
+  ShoppingCartShortInfo,
+} from '#core/cart/shopping-cart-details.type';
 import { ShoppingCartStatus } from '#core/cart/shopping-cart-status.enum';
 import { ShoppingCartEvent } from '#core/cart/shopping-cart.event.type';
-import { ShoppingCartShortInfo } from '#core/cart/shopping-cart.type';
 import { getInMemoryDb } from '#core/testing/database/get-in-memory-database';
 import { getInMemoryEventStore } from '#core/testing/event-store-in-memory';
 import { v4 as uuid } from 'uuid';
 
 describe('Getting final state (projection) from events', () => {
-  it('Should return the state from the sequence of events', () => {
+  it('Should return the state from the sequence of events', async () => {
     const openedAt = new Date();
     const confirmedAt = new Date();
     const cancelledAt = new Date();
@@ -81,7 +83,7 @@ describe('Getting final state (projection) from events', () => {
     // PROJECTIONS REGISTRATION
 
     // first confirmed
-    eventStore.appendToStream<ShoppingCartEvent>(shoppingCartId, [
+    await eventStore.appendToStream<ShoppingCartEvent>(shoppingCartId, [
       {
         type: 'ShoppingCartOpened',
         data: {
@@ -121,94 +123,106 @@ describe('Getting final state (projection) from events', () => {
     ]);
 
     // cancelled
-    eventStore.appendToStream<ShoppingCartEvent>(cancelledShoppingCartId, [
-      {
-        type: 'ShoppingCartOpened',
-        data: {
-          shoppingCartId: cancelledShoppingCartId,
-          clientId,
-          openedAt,
+    await eventStore.appendToStream<ShoppingCartEvent>(
+      cancelledShoppingCartId,
+      [
+        {
+          type: 'ShoppingCartOpened',
+          data: {
+            shoppingCartId: cancelledShoppingCartId,
+            clientId,
+            openedAt,
+          },
         },
-      },
-      {
-        type: 'ProductItemAddedToShoppingCart',
-        data: {
-          shoppingCartId: cancelledShoppingCartId,
-          productItem: dress,
+        {
+          type: 'ProductItemAddedToShoppingCart',
+          data: {
+            shoppingCartId: cancelledShoppingCartId,
+            productItem: dress,
+          },
         },
-      },
-      {
-        type: 'ShoppingCartCancelled',
-        data: {
-          shoppingCartId: cancelledShoppingCartId,
-          cancelledAt: cancelledAt,
+        {
+          type: 'ShoppingCartCancelled',
+          data: {
+            shoppingCartId: cancelledShoppingCartId,
+            cancelledAt: cancelledAt,
+          },
         },
-      },
-    ]);
+      ],
+    );
 
     // confirmed but other client
-    eventStore.appendToStream<ShoppingCartEvent>(otherClientShoppingCartId, [
-      {
-        type: 'ShoppingCartOpened',
-        data: {
-          shoppingCartId: otherClientShoppingCartId,
-          clientId: otherClientId,
-          openedAt,
+    await eventStore.appendToStream<ShoppingCartEvent>(
+      otherClientShoppingCartId,
+      [
+        {
+          type: 'ShoppingCartOpened',
+          data: {
+            shoppingCartId: otherClientShoppingCartId,
+            clientId: otherClientId,
+            openedAt,
+          },
         },
-      },
-      {
-        type: 'ProductItemAddedToShoppingCart',
-        data: {
-          shoppingCartId: otherClientShoppingCartId,
-          productItem: dress,
+        {
+          type: 'ProductItemAddedToShoppingCart',
+          data: {
+            shoppingCartId: otherClientShoppingCartId,
+            productItem: dress,
+          },
         },
-      },
-      {
-        type: 'ShoppingCartConfirmed',
-        data: {
-          shoppingCartId: otherClientShoppingCartId,
-          confirmedAt,
+        {
+          type: 'ShoppingCartConfirmed',
+          data: {
+            shoppingCartId: otherClientShoppingCartId,
+            confirmedAt,
+          },
         },
-      },
-    ]);
+      ],
+    );
 
     // second confirmed
-    eventStore.appendToStream<ShoppingCartEvent>(otherConfirmedShoppingCartId, [
-      {
-        type: 'ShoppingCartOpened',
-        data: {
-          shoppingCartId: otherConfirmedShoppingCartId,
-          clientId,
-          openedAt,
+    await eventStore.appendToStream<ShoppingCartEvent>(
+      otherConfirmedShoppingCartId,
+      [
+        {
+          type: 'ShoppingCartOpened',
+          data: {
+            shoppingCartId: otherConfirmedShoppingCartId,
+            clientId,
+            openedAt,
+          },
         },
-      },
-      {
-        type: 'ProductItemAddedToShoppingCart',
-        data: {
-          shoppingCartId: otherConfirmedShoppingCartId,
-          productItem: trousers,
+        {
+          type: 'ProductItemAddedToShoppingCart',
+          data: {
+            shoppingCartId: otherConfirmedShoppingCartId,
+            productItem: trousers,
+          },
         },
-      },
-      {
-        type: 'ShoppingCartConfirmed',
-        data: {
-          shoppingCartId: otherConfirmedShoppingCartId,
-          confirmedAt,
+        {
+          type: 'ShoppingCartConfirmed',
+          data: {
+            shoppingCartId: otherConfirmedShoppingCartId,
+            confirmedAt,
+          },
         },
-      },
-    ]);
+      ],
+    );
 
     // first pending
-    eventStore.appendToStream<ShoppingCartEvent>(otherPendingShoppingCartId, [
-      {
-        type: 'ShoppingCartOpened',
-        data: {
-          shoppingCartId: otherPendingShoppingCartId,
-          clientId,
-          openedAt,
+    await eventStore.appendToStream<ShoppingCartEvent>(
+      otherPendingShoppingCartId,
+      [
+        {
+          type: 'ShoppingCartOpened',
+          data: {
+            shoppingCartId: otherPendingShoppingCartId,
+            clientId,
+            openedAt,
+          },
         },
-      },
-    ]);
+      ],
+    );
 
     // first confirmed
     let shoppingCart = shoppingCarts.get(shoppingCartId);
@@ -223,6 +237,7 @@ describe('Getting final state (projection) from events', () => {
         pairOfShoes.unitPrice * pairOfShoes.quantity +
         tShirt.unitPrice * tShirt.quantity,
       totalItemsCount: pairOfShoes.quantity + tShirt.quantity,
+      lastProcessedPosition: 5,
     });
 
     let shoppingCartShortInfo = shoppingCartInfos.get(shoppingCartId);
@@ -239,6 +254,7 @@ describe('Getting final state (projection) from events', () => {
       cancelledAt,
       totalAmount: dress.unitPrice * dress.quantity,
       totalItemsCount: dress.quantity,
+      lastProcessedPosition: 3,
     });
 
     shoppingCartShortInfo = shoppingCartInfos.get(cancelledShoppingCartId);
@@ -255,6 +271,7 @@ describe('Getting final state (projection) from events', () => {
       confirmedAt,
       totalAmount: dress.unitPrice * dress.quantity,
       totalItemsCount: dress.quantity,
+      lastProcessedPosition: 3,
     });
 
     shoppingCartShortInfo = shoppingCartInfos.get(otherClientShoppingCartId);
@@ -271,6 +288,7 @@ describe('Getting final state (projection) from events', () => {
       confirmedAt,
       totalAmount: trousers.unitPrice * trousers.quantity,
       totalItemsCount: trousers.quantity,
+      lastProcessedPosition: 3,
     });
 
     shoppingCartShortInfo = shoppingCartInfos.get(otherConfirmedShoppingCartId);
@@ -287,6 +305,7 @@ describe('Getting final state (projection) from events', () => {
       openedAt,
       totalAmount: 0,
       totalItemsCount: 0,
+      lastProcessedPosition: 1,
     });
 
     shoppingCartShortInfo = shoppingCartInfos.get(otherPendingShoppingCartId);
@@ -295,6 +314,7 @@ describe('Getting final state (projection) from events', () => {
       clientId,
       totalAmount: 0,
       totalItemsCount: 0,
+      lastProcessedPosition: 1,
     });
   });
 });

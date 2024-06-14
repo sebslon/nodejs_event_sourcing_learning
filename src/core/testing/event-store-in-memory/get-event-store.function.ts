@@ -16,10 +16,11 @@ export const getInMemoryEventStore = (): EventStore<true> => {
     readStream: <E extends Event>(streamName: string): E[] => {
       return streams.get(streamName)?.map((e) => <E>e) ?? [];
     },
-    appendToStream: <E extends Event>(
+
+    appendToStream: async <E extends Event>(
       streamId: string,
       events: E[],
-    ): bigint => {
+    ): Promise<bigint> => {
       const current = streams.get(streamId) ?? [];
 
       const eventEnvelopes: EventEnvelope[] = events.map((event, index) => {
@@ -37,12 +38,17 @@ export const getInMemoryEventStore = (): EventStore<true> => {
 
       for (const eventEnvelope of eventEnvelopes) {
         for (const handler of handlers) {
-          handler(eventEnvelope);
+          let numberOfRepeatedPublish = Math.round(Math.random() * 5);
+
+          do {
+            await handler(eventEnvelope);
+          } while (--numberOfRepeatedPublish > 0);
         }
       }
 
       return BigInt(current.length + events.length);
     },
+
     aggregateStream: <Entity, E extends Event>(
       streamName: string,
       options: {
@@ -59,6 +65,7 @@ export const getInMemoryEventStore = (): EventStore<true> => {
 
       return state;
     },
+
     subscribe: <E extends Event>(eventHandler: EventHandler<E>): void => {
       handlers.push((eventEnvelope) =>
         eventHandler(eventEnvelope as EventEnvelope<E>),

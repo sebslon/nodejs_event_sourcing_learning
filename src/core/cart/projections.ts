@@ -1,136 +1,168 @@
 import { DocumentsCollection } from '../shared/database';
 import { EventHandler } from '../shared/event.type';
 import {
+  VersionedDocument,
+  deleteWithRetries,
+  getWithRetries,
+  storeWithRetries,
+} from '../shared/lib/eventual-consistency.lib';
+import {
   ShoppingCartDetails,
   ShoppingCartShortInfo,
 } from './shopping-cart-details.type';
 import { ShoppingCartStatus } from './shopping-cart-status.enum';
 import { ShoppingCartEvent } from './shopping-cart.event.type';
 
-export function getAndStore<T>(
+export async function getAndStore<T extends VersionedDocument>(
   collection: DocumentsCollection<T>,
   id: string,
+  streamPosition: number,
   update: (document: T) => T,
 ) {
-  const document = collection.get(id) ?? ({} as T);
+  const result = await getWithRetries(collection, id, streamPosition);
 
-  collection.store(id, update(document));
+  if (result && result.isNewer) return; // there is a newer version
+
+  const document = result?.document ?? ({} as T);
+  const updated = update(document);
+
+  updated.lastProcessedPosition = streamPosition;
+
+  const updateResult = await storeWithRetries(
+    collection,
+    id,
+    updated,
+    streamPosition,
+  );
+
+  if (!updateResult) throw new Error('Failed to update');
 }
 
 export function ShoppingCartDetailsProjection(
   collection: DocumentsCollection<ShoppingCartDetails>,
 ): EventHandler<ShoppingCartEvent> {
-  return ({ type, data: event, metadata: { streamPosition } }) => {
+  return async ({ type, data: event, metadata: { streamPosition } }) => {
     switch (type) {
       case 'ShoppingCartOpened': {
-        getAndStore(collection, event.shoppingCartId, (document) => {
-          if (document.lastProcessedPosition >= streamPosition) return document;
+        await getAndStore(
+          collection,
+          event.shoppingCartId,
+          streamPosition,
+          () => {
+            return {
+              id: event.shoppingCartId,
+              status: ShoppingCartStatus.Pending,
+              clientId: event.clientId,
+              productItems: [],
+              openedAt: event.openedAt,
+              totalAmount: 0,
+              totalItemsCount: 0,
+              lastProcessedPosition: streamPosition,
+            };
+          },
+        );
 
-          return {
-            id: event.shoppingCartId,
-            status: ShoppingCartStatus.Pending,
-            clientId: event.clientId,
-            productItems: [],
-            openedAt: event.openedAt,
-            totalAmount: 0,
-            totalItemsCount: 0,
-            lastProcessedPosition: streamPosition,
-          };
-        });
         return;
       }
 
       case 'ProductItemAddedToShoppingCart': {
-        getAndStore(collection, event.shoppingCartId, (document) => {
-          if (document.lastProcessedPosition >= streamPosition) return document;
+        await getAndStore(
+          collection,
+          event.shoppingCartId,
+          streamPosition,
+          (document) => {
+            const { productItem } = event;
+            const existingProductItem = document.productItems.find(
+              (p) =>
+                p.productId === productItem.productId &&
+                p.unitPrice === productItem.unitPrice,
+            );
 
-          const { productItem } = event;
-          const existingProductItem = document.productItems.find(
-            (item) =>
-              item.productId === productItem.productId &&
-              item.unitPrice === productItem.unitPrice,
-          );
+            if (existingProductItem == null) {
+              document.productItems.push({ ...productItem });
+            } else {
+              document.productItems[
+                document.productItems.indexOf(existingProductItem)
+              ].quantity += productItem.quantity;
+            }
 
-          if (!existingProductItem) {
-            document.productItems.push({ ...productItem });
-          } else {
-            document.productItems[
-              document.productItems.indexOf(existingProductItem)
-            ].quantity += productItem.quantity;
-          }
+            document.totalAmount +=
+              productItem.quantity * productItem.unitPrice;
+            document.totalItemsCount += productItem.quantity;
 
-          document.totalAmount += productItem.unitPrice * productItem.quantity;
-          document.totalItemsCount += productItem.quantity;
-
-          document.lastProcessedPosition = streamPosition;
-
-          return document;
-        });
+            return document;
+          },
+        );
 
         return;
       }
 
       case 'ProductItemRemovedFromShoppingCart': {
-        getAndStore(collection, event.shoppingCartId, (document) => {
-          if (document.lastProcessedPosition >= streamPosition) return document;
-
-          const { productItem } = event;
-          const existingProductItem = document.productItems.find(
-            (item) =>
-              item.productId === productItem.productId &&
-              item.unitPrice === productItem.unitPrice,
-          );
-
-          if (existingProductItem == null) {
-            return document;
-          }
-
-          existingProductItem.quantity -= productItem.quantity;
-
-          if (existingProductItem.quantity == 0) {
-            document.productItems.splice(
-              document.productItems.indexOf(existingProductItem),
-              1,
+        await getAndStore(
+          collection,
+          event.shoppingCartId,
+          streamPosition,
+          (document) => {
+            const { productItem } = event;
+            const existingProductItem = document.productItems.find(
+              (p) =>
+                p.productId === productItem.productId &&
+                p.unitPrice === productItem.unitPrice,
             );
-          }
 
-          document.totalAmount -= productItem.quantity * productItem.unitPrice;
-          document.totalItemsCount -= productItem.quantity;
+            if (existingProductItem == null) {
+              // You may consider throwing exception here, depending on your strategy
+              return document;
+            }
 
-          document.lastProcessedPosition = streamPosition;
+            existingProductItem.quantity -= productItem.quantity;
 
-          return document;
-        });
+            if (existingProductItem.quantity == 0) {
+              document.productItems.splice(
+                document.productItems.indexOf(existingProductItem),
+                1,
+              );
+            }
+
+            document.totalAmount -=
+              productItem.quantity * productItem.unitPrice;
+            document.totalItemsCount -= productItem.quantity;
+
+            return document;
+          },
+        );
 
         return;
       }
 
       case 'ShoppingCartConfirmed': {
-        getAndStore(collection, event.shoppingCartId, (document) => {
-          if (document.lastProcessedPosition >= streamPosition) return document;
+        await getAndStore(
+          collection,
+          event.shoppingCartId,
+          streamPosition,
+          (document) => {
+            document.status = ShoppingCartStatus.Confirmed;
+            document.confirmedAt = event.confirmedAt;
 
-          document.status = ShoppingCartStatus.Confirmed;
-          document.confirmedAt = event.confirmedAt;
-
-          document.lastProcessedPosition = streamPosition;
-
-          return document;
-        });
+            return document;
+          },
+        );
 
         return;
       }
 
       case 'ShoppingCartCancelled': {
-        getAndStore(collection, event.shoppingCartId, (document) => {
-          if (document.lastProcessedPosition >= streamPosition) return document;
+        await getAndStore(
+          collection,
+          event.shoppingCartId,
+          streamPosition,
+          (document) => {
+            document.status = ShoppingCartStatus.Cancelled;
+            document.cancelledAt = event.cancelledAt;
 
-          document.status = ShoppingCartStatus.Cancelled;
-          document.cancelledAt = event.cancelledAt;
-
-          document.lastProcessedPosition = streamPosition;
-
-          return document;
-        });
+            return document;
+          },
+        );
 
         return;
       }
@@ -145,64 +177,71 @@ export function ShoppingCartDetailsProjection(
 export function ShoppingCartShortInfoProjection(
   collection: DocumentsCollection<ShoppingCartShortInfo>,
 ): EventHandler<ShoppingCartEvent> {
-  return ({ type, data: event, metadata: { streamPosition } }) => {
+  return async ({ type, data: event, metadata: { streamPosition } }) => {
     switch (type) {
       case 'ShoppingCartOpened': {
-        getAndStore(collection, event.shoppingCartId, (document) => {
-          if (document.lastProcessedPosition >= streamPosition) return document;
-
-          return {
-            id: event.shoppingCartId,
-            clientId: event.clientId,
-            totalAmount: 0,
-            totalItemsCount: 0,
-            lastProcessedPosition: streamPosition,
-          };
-        });
+        await getAndStore(
+          collection,
+          event.shoppingCartId,
+          streamPosition,
+          () => {
+            return {
+              id: event.shoppingCartId,
+              clientId: event.clientId,
+              totalAmount: 0,
+              totalItemsCount: 0,
+              lastProcessedPosition: streamPosition,
+            };
+          },
+        );
 
         return;
       }
       case 'ProductItemAddedToShoppingCart': {
-        getAndStore(collection, event.shoppingCartId, (document) => {
-          if (document.lastProcessedPosition >= streamPosition) return document;
+        await getAndStore(
+          collection,
+          event.shoppingCartId,
+          streamPosition,
+          (document) => {
+            const { productItem } = event;
 
-          const { productItem } = event;
+            document.totalAmount +=
+              productItem.quantity * productItem.unitPrice;
+            document.totalItemsCount += productItem.quantity;
 
-          document.totalAmount += productItem.quantity * productItem.unitPrice;
-          document.totalItemsCount += productItem.quantity;
-
-          document.lastProcessedPosition = streamPosition;
-
-          return document;
-        });
+            return document;
+          },
+        );
 
         return;
       }
 
       case 'ProductItemRemovedFromShoppingCart': {
-        getAndStore(collection, event.shoppingCartId, (document) => {
-          if (document.lastProcessedPosition >= streamPosition) return document;
+        await getAndStore(
+          collection,
+          event.shoppingCartId,
+          streamPosition,
+          (document) => {
+            const { productItem } = event;
 
-          const { productItem } = event;
+            document.totalAmount -=
+              productItem.quantity * productItem.unitPrice;
+            document.totalItemsCount -= productItem.quantity;
 
-          document.totalAmount -= productItem.quantity * productItem.unitPrice;
-          document.totalItemsCount -= productItem.quantity;
-
-          document.lastProcessedPosition = streamPosition;
-
-          return document;
-        });
+            return document;
+          },
+        );
 
         return;
       }
 
       case 'ShoppingCartConfirmed': {
-        collection.delete(event.shoppingCartId);
+        await deleteWithRetries(collection, event.shoppingCartId);
         return;
       }
 
       case 'ShoppingCartCancelled': {
-        collection.delete(event.shoppingCartId);
+        await deleteWithRetries(collection, event.shoppingCartId);
         return;
       }
     }

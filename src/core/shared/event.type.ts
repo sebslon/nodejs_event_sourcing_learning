@@ -18,4 +18,4 @@ export type EventEnvelope<E extends Event = Event> = E & {
 
 export type EventHandler<E extends Event = Event> = (
   eventEnvelope: EventEnvelope<E>,
-) => void;
+) => Promise<void>;

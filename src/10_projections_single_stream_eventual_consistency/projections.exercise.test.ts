@@ -1,18 +1,31 @@
 import { PricedProductItem } from '#core/cart/product-item.interface';
-import { ShoppingCartDetails } from '#core/cart/shopping-cart-details.type';
-import { ShoppingCartStatus } from '#core/cart/shopping-cart-status.enum';
-import { ShoppingCartEvent } from '#core/cart/shopping-cart.event.type';
-import { ShoppingCartShortInfo } from '#core/cart/shopping-cart.type';
-import { v4 as uuid } from 'uuid';
 import {
   ShoppingCartDetailsProjection,
   ShoppingCartShortInfoProjection,
-} from './projections';
-import { getDatabase } from './tools/database';
-import { getEventStore } from './tools/event-store';
+} from '#core/cart/projections';
+import {
+  ShoppingCartDetails,
+  ShoppingCartShortInfo,
+} from '#core/cart/shopping-cart-details.type';
+import { ShoppingCartStatus } from '#core/cart/shopping-cart-status.enum';
+import { ShoppingCartEvent } from '#core/cart/shopping-cart.event.type';
+import { DocumentsCollection } from '#core/shared/database';
+import {
+  VersionedDocument,
+  getWithRetries,
+} from '#core/shared/lib/eventual-consistency.lib';
+import { getInMemoryDb } from '#core/testing/database/get-in-memory-database';
+import { getInMemoryEventStore } from '#core/testing/event-store-in-memory';
+import { v4 as uuid } from 'uuid';
 
-describe('Getting state from events', () => {
-  it('Should return the state from the sequence of events', () => {
+const get = async <T extends VersionedDocument>(
+  collection: DocumentsCollection<T>,
+  id: string,
+  streamPosition: number,
+) => (await getWithRetries(collection, id, streamPosition))?.document ?? null;
+
+describe('Getting final state (projection) from events', () => {
+  it('Should return the EVENTUALLY CONSISTENT state from the sequences of events', async () => {
     const openedAt = new Date();
     const confirmedAt = new Date();
     const cancelledAt = new Date();
@@ -60,8 +73,8 @@ describe('Getting state from events', () => {
     const clientId = uuid();
     const otherClientId = uuid();
 
-    const eventStore = getEventStore();
-    const database = getDatabase();
+    const eventStore = getInMemoryEventStore();
+    const database = getInMemoryDb();
 
     const shoppingCarts =
       database.collection<ShoppingCartDetails>('shoppingCarts');
@@ -79,8 +92,7 @@ describe('Getting state from events', () => {
     eventStore.subscribe(shoppingCartShortInfoProjection);
 
     // first confirmed
-    eventStore.appendToStream<ShoppingCartEvent>(
-      shoppingCartId,
+    await eventStore.appendToStream<ShoppingCartEvent>(shoppingCartId, [
       {
         type: 'ShoppingCartOpened',
         data: {
@@ -117,101 +129,115 @@ describe('Getting state from events', () => {
           confirmedAt,
         },
       },
-    );
+    ]);
 
     // cancelled
-    eventStore.appendToStream<ShoppingCartEvent>(
+    await eventStore.appendToStream<ShoppingCartEvent>(
       cancelledShoppingCartId,
-      {
-        type: 'ShoppingCartOpened',
-        data: {
-          shoppingCartId: cancelledShoppingCartId,
-          clientId,
-          openedAt,
+      [
+        {
+          type: 'ShoppingCartOpened',
+          data: {
+            shoppingCartId: cancelledShoppingCartId,
+            clientId,
+            openedAt,
+          },
         },
-      },
-      {
-        type: 'ProductItemAddedToShoppingCart',
-        data: {
-          shoppingCartId: cancelledShoppingCartId,
-          productItem: dress,
+        {
+          type: 'ProductItemAddedToShoppingCart',
+          data: {
+            shoppingCartId: cancelledShoppingCartId,
+            productItem: dress,
+          },
         },
-      },
-      {
-        type: 'ShoppingCartCancelled',
-        data: {
-          shoppingCartId: cancelledShoppingCartId,
-          cancelledAt,
+        {
+          type: 'ShoppingCartCancelled',
+          data: {
+            shoppingCartId: cancelledShoppingCartId,
+            cancelledAt,
+          },
         },
-      },
+      ],
     );
 
     // confirmed but other client
-    eventStore.appendToStream<ShoppingCartEvent>(
+    await eventStore.appendToStream<ShoppingCartEvent>(
       otherClientShoppingCartId,
-      {
-        type: 'ShoppingCartOpened',
-        data: {
-          shoppingCartId: otherClientShoppingCartId,
-          clientId: otherClientId,
-          openedAt,
+      [
+        {
+          type: 'ShoppingCartOpened',
+          data: {
+            shoppingCartId: otherClientShoppingCartId,
+            clientId: otherClientId,
+            openedAt,
+          },
         },
-      },
-      {
-        type: 'ProductItemAddedToShoppingCart',
-        data: {
-          shoppingCartId: otherClientShoppingCartId,
-          productItem: dress,
+        {
+          type: 'ProductItemAddedToShoppingCart',
+          data: {
+            shoppingCartId: otherClientShoppingCartId,
+            productItem: dress,
+          },
         },
-      },
-      {
-        type: 'ShoppingCartConfirmed',
-        data: {
-          shoppingCartId: otherClientShoppingCartId,
-          confirmedAt,
+        {
+          type: 'ShoppingCartConfirmed',
+          data: {
+            shoppingCartId: otherClientShoppingCartId,
+            confirmedAt,
+          },
         },
-      },
+      ],
     );
 
     // second confirmed
-    eventStore.appendToStream<ShoppingCartEvent>(
+    await eventStore.appendToStream<ShoppingCartEvent>(
       otherConfirmedShoppingCartId,
-      {
-        type: 'ShoppingCartOpened',
-        data: {
-          shoppingCartId: otherConfirmedShoppingCartId,
-          clientId,
-          openedAt,
+      [
+        {
+          type: 'ShoppingCartOpened',
+          data: {
+            shoppingCartId: otherConfirmedShoppingCartId,
+            clientId,
+            openedAt,
+          },
         },
-      },
-      {
-        type: 'ProductItemAddedToShoppingCart',
-        data: {
-          shoppingCartId: otherConfirmedShoppingCartId,
-          productItem: trousers,
+        {
+          type: 'ProductItemAddedToShoppingCart',
+          data: {
+            shoppingCartId: otherConfirmedShoppingCartId,
+            productItem: trousers,
+          },
         },
-      },
-      {
-        type: 'ShoppingCartConfirmed',
-        data: {
-          shoppingCartId: otherConfirmedShoppingCartId,
-          confirmedAt,
+        {
+          type: 'ShoppingCartConfirmed',
+          data: {
+            shoppingCartId: otherConfirmedShoppingCartId,
+            confirmedAt,
+          },
         },
-      },
+      ],
     );
 
     // first pending
-    eventStore.appendToStream<ShoppingCartEvent>(otherPendingShoppingCartId, {
-      type: 'ShoppingCartOpened',
-      data: {
-        shoppingCartId: otherPendingShoppingCartId,
-        clientId,
-        openedAt,
-      },
-    });
+    await eventStore.appendToStream<ShoppingCartEvent>(
+      otherPendingShoppingCartId,
+      [
+        {
+          type: 'ShoppingCartOpened',
+          data: {
+            shoppingCartId: otherPendingShoppingCartId,
+            clientId,
+            openedAt,
+          },
+        },
+      ],
+    );
 
     // first confirmed
-    let shoppingCart = shoppingCarts.get(shoppingCartId);
+    let shoppingCart = await get(shoppingCarts, shoppingCartId, 5);
+    let shoppingCartShortInfo =
+      (await get(shoppingCartInfos, shoppingCartId, 5)) ?? null;
+
     expect(shoppingCart).toEqual({
       id: shoppingCartId,
       clientId,
@@ -223,13 +249,18 @@ describe('Getting state from events', () => {
         pairOfShoes.unitPrice * pairOfShoes.quantity +
         tShirt.unitPrice * tShirt.quantity,
       totalItemsCount: pairOfShoes.quantity + tShirt.quantity,
+      lastProcessedPosition: 5,
     });
-
-    let shoppingCartShortInfo = shoppingCartInfos.get(shoppingCartId);
     expect(shoppingCartShortInfo).toBeNull();
 
     // cancelled
-    shoppingCart = shoppingCarts.get(cancelledShoppingCartId);
+    shoppingCart = await get(shoppingCarts, cancelledShoppingCartId, 3);
+    shoppingCartShortInfo = await get(
+      shoppingCartInfos,
+      cancelledShoppingCartId,
+      3,
+    );
+
     expect(shoppingCart).toEqual({
       id: cancelledShoppingCartId,
       clientId,
@@ -239,13 +270,18 @@ describe('Getting state from events', () => {
       cancelledAt,
       totalAmount: dress.unitPrice * dress.quantity,
       totalItemsCount: dress.quantity,
+      lastProcessedPosition: 3,
     });
-
-    shoppingCartShortInfo = shoppingCartInfos.get(cancelledShoppingCartId);
     expect(shoppingCartShortInfo).toBeNull();
 
     // confirmed but other client
-    shoppingCart = shoppingCarts.get(otherClientShoppingCartId);
+    shoppingCart = await get(shoppingCarts, otherClientShoppingCartId, 3);
+    shoppingCartShortInfo = await get(
+      shoppingCartInfos,
+      otherClientShoppingCartId,
+      3,
+    );
+
     expect(shoppingCart).toEqual({
       id: otherClientShoppingCartId,
       clientId: otherClientId,
@@ -255,13 +291,18 @@ describe('Getting state from events', () => {
       confirmedAt,
       totalAmount: dress.unitPrice * dress.quantity,
       totalItemsCount: dress.quantity,
+      lastProcessedPosition: 3,
     });
-
-    shoppingCartShortInfo = shoppingCartInfos.get(otherClientShoppingCartId);
     expect(shoppingCartShortInfo).toBeNull();
 
     // second confirmed
-    shoppingCart = shoppingCarts.get(otherConfirmedShoppingCartId);
+    shoppingCart = await get(shoppingCarts, otherConfirmedShoppingCartId, 3);
+    shoppingCartShortInfo = await get(
+      shoppingCartInfos,
+      otherConfirmedShoppingCartId,
+      3,
+    );
+
     expect(shoppingCart).toEqual({
       id: otherConfirmedShoppingCartId,
       clientId,
@@ -271,13 +312,18 @@ describe('Getting state from events', () => {
       confirmedAt,
       totalAmount: trousers.unitPrice * trousers.quantity,
       totalItemsCount: trousers.quantity,
+      lastProcessedPosition: 3,
     });
-
-    shoppingCartShortInfo = shoppingCartInfos.get(otherConfirmedShoppingCartId);
     expect(shoppingCartShortInfo).toBeNull();
 
     // first pending
-    shoppingCart = shoppingCarts.get(otherPendingShoppingCartId);
+    shoppingCart = await get(shoppingCarts, otherPendingShoppingCartId, 1);
+    shoppingCartShortInfo = await get(
+      shoppingCartInfos,
+      otherPendingShoppingCartId,
+      1,
+    );
+
     expect(shoppingCart).toEqual({
       id: otherPendingShoppingCartId,
       clientId,
@@ -286,14 +332,14 @@ describe('Getting state from events', () => {
       openedAt,
       totalAmount: 0,
       totalItemsCount: 0,
+      lastProcessedPosition: 1,
     });
-
-    shoppingCartShortInfo = shoppingCartInfos.get(otherPendingShoppingCartId);
     expect(shoppingCartShortInfo).toStrictEqual({
       id: otherPendingShoppingCartId,
       clientId,
       totalAmount: 0,
       totalItemsCount: 0,
+      lastProcessedPosition: 1,
     });
   });
 });

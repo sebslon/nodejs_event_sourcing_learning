@@ -16,8 +16,8 @@ export interface EventStore<InMemory extends boolean = false> {
     streamId: string,
     events: E[],
     options?: { expectedRevision?: bigint },
-  ): InMemory extends true ? bigint : Promise<bigint>;
+  ): InMemory extends true ? Promise<bigint> : Promise<bigint>;
   subscribe<E extends Event>(
-    eventHandler: (eventEnvelope: EventEnvelope<E>) => void,
+    eventHandler: (eventEnvelope: EventEnvelope<E>) => Promise<void>,
   ): void;
 }
