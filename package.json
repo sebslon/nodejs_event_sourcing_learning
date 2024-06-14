@@ -15,7 +15,7 @@
     "fix:prettier": "prettier --write \"**/**/!(*.d).{ts,json,md}\"",
     "fix:eslint": "eslint **/*.ts --fix",
     "test": "run-s test:exercises test:infr",
-    "test:exercises": "jest exercise --passWithNoTests --forceExit",
+    "test:exercises": "jest exercise --passWithNoTests --forceExit --runInBand",
     "test:infr": "jest infr --passWithNoTests --forceExit",
     "test:watch": "jest test --passWithNoTests",
     "test:exercises:watch": "jest exercise --passWithNoTests --forceExit --watch"
